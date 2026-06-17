@@ -10,12 +10,13 @@
 
 ## 1. Proje Kimliği
 
-| Alan              | Değer                                                             |
-| ----------------- | ----------------------------------------------------------------- |
-| **Proje Adı**     | SeeFps                                                            |
-| **Tür**           | End-to-End Web Uygulaması & Hardware Detection Aracı              |
-| **Amaç**          | Kullanıcının donanım ve oyun bilgilerini girerek sanal benchmark simülasyonu çalıştırması ve tahmini FPS, sıcaklık, RPM, clock gibi performans metriklerini görmesi. |
-| **Hedef Platform** | Modern web tarayıcıları (Desktop-first, responsive)              |
+| Alan               | Değer                                                                       |
+| ------------------ | --------------------------------------------------------------------------- |
+| **Proje Adı**      | SeeFps                                                                      |
+| **Tür**            | End-to-End Web Platformu + Masaüstü İstemcileri (Hub & Spoke Mimari)        |
+| **Amaç**           | Kullanıcının donanım bilgilerini otomatik veya manuel alarak, masaüstü simülasyon uygulaması üzerinden sanal benchmark çalıştırıp tahmini FPS, sıcaklık, RPM ve clock metriklerini web platformunda görmesi. |
+| **Mimari Model**   | **Hub & Spoke** — Web Platformu (Hub) + Detection App (Spoke) + Simulation App (Spoke) |
+| **Hedef Platform** | Web: Modern tarayıcılar (Desktop-first) · Masaüstü: Windows (öncelik), macOS/Linux (opsiyonel) |
 | **Dil Politikası** | Türkçe (UI & dokümantasyon), İngilizce (kod, commit mesajları, değişken isimleri) |
 
 ---
@@ -26,13 +27,14 @@
 > Aşağıdaki tablo **projenin resmi teknoloji sınırlarını** belirler.
 > Bu liste dışında hiçbir framework, kütüphane veya araç kullanıcı onayı olmadan eklenemez.
 
-| Katman                    | Teknoloji                                    | Kullanım Amacı                                        |
-| ------------------------- | -------------------------------------------- | ----------------------------------------------------- |
-| **Frontend (UI)**         | HTML / CSS / JavaScript (veya React)         | Kullanıcı arayüzü, animasyonlar, SPA deneyimi         |
-| **Backend & API**         | Python + **FastAPI**                         | REST API, hızlı veri iletimi, ML model servisi         |
-| **Makine Öğrenmesi (ML)** | Python, **Scikit-learn**, **Joblib**         | MLPRegressor inference, pipeline yükleme/çalıştırma    |
-| **Detection App**         | Python (**psutil**, **GPUtil**, **cpuinfo**) veya Electron / C# | Kullanıcının yerel donanım bilgilerini tarama |
-| **Veri Formatı**          | JSON (API iletişimi), CSV (veri setleri)     | Katmanlar arası veri alışverişi                        |
+| Katman                          | Teknoloji                                    | Kullanım Amacı                                           |
+| ------------------------------- | -------------------------------------------- | -------------------------------------------------------- |
+| **Frontend (UI — Web Hub)**     | HTML / CSS / JavaScript (veya React)         | Kullanıcı arayüzü, Selection Box'lar, Analyzing state, sonuç ekranı |
+| **Backend & API (Hub Core)**    | Python + **FastAPI**                         | REST API + WebSocket, veri servisi, ML proxy, session yönetimi |
+| **Makine Öğrenmesi (ML)**       | Python, **Scikit-learn**, **Joblib**         | MLPRegressor inference, pipeline yükleme/çalıştırma       |
+| **Detection App (Spoke 1)**     | Python (**psutil**, **GPUtil**, **cpuinfo**) veya Electron / C# | Kullanıcının yerel donanım bilgilerini tarayıp API'ye gönderme |
+| **Simulation App (Spoke 2)**    | Python (veya Electron / C#)                  | Masaüstünde sanal benchmark simülasyonu çalıştırıp sonuçları API'ye gönderme |
+| **Veri Formatı**                | JSON (API iletişimi), CSV (veri setleri)     | Katmanlar arası veri alışverişi                           |
 
 ### 2.1. İzin Verilen Yardımcı Araçlar
 
@@ -42,6 +44,7 @@ Aşağıdaki araçlar, yukarıdaki ana stack'e destek amacıyla kullanılabilir:
 - **pydantic** — FastAPI veri doğrulama (FastAPI ile birlikte gelir)
 - **numpy / pandas** — ML pipeline'ın mevcut bağımlılıkları
 - **cors middleware** — Frontend-Backend iletişimi için
+- **websockets** — Simulation App ↔ Backend gerçek zamanlı iletişim
 - **python-dotenv** — Ortam değişkeni yönetimi
 - **pytest** — Test framework'ü
 
@@ -62,20 +65,62 @@ Aşağıdaki araçlar, yukarıdaki ana stack'e destek amacıyla kullanılabilir:
 | `TrainedData/main.ipynb`            | Araştırma & eğitim süreci notebook'u (referans)        |
 | `TrainedData/main_merged.csv`       | Birleştirilmiş ana veri seti                           |
 | `TrainedData/a.csv`, `b.csv`        | Ham veri setleri                                       |
-| Frontend arayüzü                    | Tasarımı hazırlanmış UI katmanı                        |
+| Frontend arayüzü                    | Lovable ile üretilmiş UI (refactor edilecek)           |
 
 ### 🔲 Yapılması Gerekenler
 
+- [ ] Frontend refactoring (Mock data temizliği, Selection Box'lar, Analyzing state)
 - [ ] Backend API katmanı (FastAPI — sıfırdan kurulacak)
 - [ ] ML Model servis entegrasyonu (predict_fps.py → FastAPI endpoint)
-- [ ] Detection App (donanım otomatik algılama aracı)
+- [ ] Detection App — masaüstü donanım tarama istemcisi
+- [ ] Simulation App — masaüstü benchmark simülasyon istemcisi
 - [ ] Frontend ↔ Backend entegrasyonu
-- [ ] Sanal benchmark simülasyon motoru
+- [ ] Masaüstü İstemcileri ↔ Backend entegrasyonu
 - [ ] End-to-End test & deployment pipeline
 
 ---
 
-## 4. Uygulama Akışı (Kullanıcı Deneyimi)
+## 4. Hub & Spoke Mimari Model
+
+```
+                    ┌───────────────────────────────────┐
+                    │         🌐 WEB PLATFORM (HUB)     │
+                    │                                   │
+                    │  ┌─────────────────────────────┐  │
+                    │  │       FRONTEND (UI)          │  │
+                    │  │  Selection Box'lar (Dropdown) │  │
+                    │  │  Analyzing State Ekranı       │  │
+                    │  │  Sonuç (Results) Dashboard    │  │
+                    │  └──────────┬──────────────────┘  │
+                    │             │ REST API             │
+                    │  ┌──────────▼──────────────────┐  │
+                    │  │     BACKEND API (FastAPI)    │  │
+                    │  │  ML Servisi • Veri Servisi   │  │
+                    │  │  WebSocket • Session Yönetim │  │
+                    │  └──┬────────────────────┬────┘  │
+                    └─────┼────────────────────┼───────┘
+                          │                    │
+              ┌───────────▼──────┐  ┌──────────▼────────────┐
+              │  🔍 DETECTION    │  │  🎮 SIMULATION APP    │
+              │     APP          │  │  (Masaüstü İstemci)   │
+              │  (Masaüstü)      │  │                       │
+              │                  │  │  ML Model Inference   │
+              │  POST /api/detect│  │  Benchmark Motoru     │
+              │  HW bilgilerini  │  │  Sonuçları POST ile   │
+              │  API'ye gönderir │  │  API'ye gönderir      │
+              │  (Spoke 1)       │  │  (Spoke 2)            │
+              └──────────────────┘  └───────────────────────┘
+```
+
+> [!IMPORTANT]
+> **Simülasyon tarayıcıda ÇALIŞMAZ.** Benchmark simülasyonu kullanıcının bilgisayarına
+> indirilen ayrı bir **Desktop Simulation App** tarafından yürütülür. Sonuçlar API
+> aracılığıyla web platformuna geri gönderilir. Web sitesinde simülasyon süresince
+> bir **"Analyzing..." bekleme ekranı** gösterilir.
+
+---
+
+## 5. Uygulama Akışı (Kullanıcı Deneyimi)
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -88,24 +133,45 @@ Aşağıdaki araçlar, yukarıdaki ana stack'e destek amacıyla kullanılabilir:
 │              2. SİSTEM BİLGİSİ GİRDİSİ                 │
 │                                                         │
 │  ┌─────────────────┐   ┌─────────────────────────────┐  │
-│  │  Detection App  │   │    Manuel Seçim Barları     │  │
-│  │  (Otomatik HW   │   │  CPU / GPU / RAM / SSD /   │  │
-│  │   Algılama)     │   │  Çözünürlük (Dropdown'lar) │  │
+│  │  Detection App  │   │   Manuel Selection Box'lar  │  │
+│  │  (Masaüstü —    │   │  ┌───────────────────────┐  │  │
+│  │   Otomatik HW   │   │  │ CPU Dropdown     ▼  │  │  │
+│  │   Tarama)       │   │  │ GPU Dropdown     ▼  │  │  │
+│  │       │         │   │  │ RAM Dropdown     ▼  │  │  │
+│  │       ▼         │   │  │ SSD Dropdown     ▼  │  │  │
+│  │  POST /api/     │   │  │ Çözünürlük       ▼  │  │  │
+│  │  detect         │   │  └───────────────────────┘  │  │
 │  └─────────────────┘   └─────────────────────────────┘  │
+│                                                         │
+│  ⚠️  Tüm veriler ML dataset'inden beslenir.             │
+│     Mock data KULLANILMAZ.                              │
 └──────────────────────┬──────────────────────────────────┘
                        │
                        ▼
 ┌─────────────────────────────────────────────────────────┐
 │            3. OYUN VE HARİTA SEÇİMİ                    │
-│     Platform → Oyun → Harita seçimi                     │
+│     Platform → Oyun → Harita selection box               │
 └──────────────────────┬──────────────────────────────────┘
                        │
                        ▼
 ┌─────────────────────────────────────────────────────────┐
-│        4. SANAL BENCHMARK SİMÜLASYONU                   │
-│  Oyun motoru dinamiklerine dayalı mantıksal test:       │
-│  Smoke, yetenekler, yansımalar, partikül efektleri...   │
-│  (Arka planda otomatik — kullanıcı müdahalesi yok)      │
+│        4. MASAÜSTÜ BENCHMARK SİMÜLASYONU                │
+│                                                         │
+│  ┌─────────────────────────────────────────────────┐    │
+│  │  💻 Simulation App (Masaüstü İstemci)            │    │
+│  │  • Kullanıcının bilgisayarına indirilir           │    │
+│  │  • Arka planda sanal benchmark koşturur           │    │
+│  │  • Oyun motoru dinamikleri: smoke, yetenekler,    │    │
+│  │    yansımalar, partikül efektleri simüle edilir    │    │
+│  │  • Sonuçları API'ye POST eder                     │    │
+│  └─────────────────────────────────────────────────┘    │
+│                                                         │
+│  ┌─────────────────────────────────────────────────┐    │
+│  │  🌐 Web Sitesi — "Analyzing..." Bekleme Ekranı   │    │
+│  │  • İlerleme çubuğu / aşama gösterimi              │    │
+│  │  • "GPU yük testi...", "Sonuçlar hesaplanıyor..." │    │
+│  │  • WebSocket ile canlı durum güncellemesi          │    │
+│  └─────────────────────────────────────────────────┘    │
 └──────────────────────┬──────────────────────────────────┘
                        │
                        ▼
@@ -118,34 +184,13 @@ Aşağıdaki araçlar, yukarıdaki ana stack'e destek amacıyla kullanılabilir:
 │  ┌──────────────────┐ ┌──────────────────┐              │
 │  │ CPU/GPU Sıcaklık │ │ RPM & Clock Hız  │              │
 │  └──────────────────┘ └──────────────────┘              │
+│  ┌──────────────────────────────────────┐               │
+│  │ Darboğaz Analizi (Bottleneck)        │               │
+│  └──────────────────────────────────────┘               │
 └──────────────────────┬──────────────────────────────────┘
                        │
                        ▼
               🔄 Yeniden Test → Adım 2'ye dön
-```
-
----
-
-## 5. Mimari Katmanlar
-
-```
-┌──────────────────────────────────────────────────────────┐
-│                  FRONTEND (UI LAYER)                     │
-│          HTML / CSS / JS (veya React)                    │
-│     Splash, Formlar, Animasyonlar, Sonuç Ekranı         │
-├──────────────────────────────────────────────────────────┤
-│                BACKEND API (SERVICE LAYER)                │
-│              Python + FastAPI + Uvicorn                   │
-│     REST Endpoint'ler, iş mantığı, veri doğrulama        │
-├──────────────────────────────────────────────────────────┤
-│             ML MODEL ENTEGRASYONu (ML LAYER)             │
-│          Scikit-learn + Joblib + predict_fps.py           │
-│     Model yükleme, feature engineering, inference        │
-├──────────────────────────────────────────────────────────┤
-│              DETECTION APP (SYSTEM LAYER)                 │
-│        Python (psutil, GPUtil, cpuinfo) veya             │
-│        Electron / C# — Donanım otomatik algılama         │
-└──────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -163,7 +208,8 @@ Aşağıdaki araçlar, yukarıdaki ana stack'e destek amacıyla kullanılabilir:
 
 ```
 ⛔ STRICT RULE: Her bir mimari katman (Frontend, Backend API, ML Model
-Entegrasyonu, Detection App) üzerinde kesinlikle AYRI AYRI çalışılacaktır.
+Entegrasyonu, Detection App, Simulation App) üzerinde kesinlikle AYRI
+AYRI çalışılacaktır.
 
 • Hiçbir koşulda iki farklı katman aynı anda geliştirilmeyecektir.
 • Bir katmandaki çalışma bitirilmeden ve kullanıcı onayı alınmadan
@@ -182,7 +228,8 @@ dışına çıkılmayacak, gereksiz kütüphane eklenmeyecektir.
 • Frontend: HTML/CSS/JS veya React. Başka UI framework'ü KULLANILMAZ.
 • Backend:  Python + FastAPI. Django, Flask veya başka framework KULLANILMAZ.
 • ML:       Scikit-learn + Joblib. PyTorch, TensorFlow vb. KULLANILMAZ.
-• Detection: psutil, GPUtil, cpuinfo veya Electron/C#.
+• Detection App: psutil, GPUtil, cpuinfo veya Electron/C#.
+• Simulation App: Python veya Electron/C#.
 • Bölüm 2.1'deki yardımcı araçlar listesi dışındaki her bağımlılık için
   kullanıcıdan AÇIK ONAY alınacaktır.
 • Gerekçesiz npm install, pip install veya bağımlılık ekleme YAPILMAZ.
@@ -222,19 +269,19 @@ geçilmeyecektir. Her durma noktasında şunlar sunulacaktır:
 
 ---
 
-### KURAL 5 — End-to-End Bütünlük
+### KURAL 5 — End-to-End Bütünlük (Hub & Spoke)
 
 ```
-⛔ STRICT RULE: Bu bir End-to-End projedir. Bütünsellik korunacak
-ancak geliştirme izole adımlarla yapılacaktır.
+⛔ STRICT RULE: Bu bir Hub & Spoke mimarisinde End-to-End projedir.
+Bütünsellik korunacak ancak geliştirme izole adımlarla yapılacaktır.
 
-• Her katman bağımsız çalışabilir (loosely coupled) olmalıdır.
-• Entegrasyon noktaları (API kontratları, veri formatları, interface
-  tanımları) en baştan planlanmalıdır.
+• Web Platformu (Hub) tüm veri akışının merkez noktasıdır.
+• Masaüstü istemcileri (Spoke) yalnızca tanımlanmış API endpoint'leri
+  üzerinden Hub ile iletişim kurar.
+• Entegrasyon noktaları (API kontratları, veri formatları, WebSocket
+  protokolleri) en baştan planlanmalıdır.
 • Tüm katmanlar arasında veri formatı ve API sözleşmesi tutarlı
   olmalıdır.
-• Katmanlar arası iletişim yalnızca tanımlanmış API endpoint'leri
-  ve JSON formatı üzerinden gerçekleşecektir.
 ```
 
 ---
@@ -247,15 +294,50 @@ ancak geliştirme izole adımlarla yapılacaktır.
 doğrudan DEĞİŞTİRİLMEYECEKTİR.
 
 • Bu dosyalar referans ve entegrasyon kaynağıdır.
-• ML modeli backend'e entegre edilirken wrapper/adapter pattern
-  kullanılacaktır.
+• ML modeli backend veya Simulation App'e entegre edilirken
+  wrapper/adapter pattern kullanılacaktır.
 • Herhangi bir modifikasyona ihtiyaç duyulursa, değişiklik ÖNCESİ
   kullanıcı onayı ZORUNLUDUR.
 ```
 
 ---
 
-### KURAL 7 — Kod Kalitesi Standartları
+### KURAL 7 — Mock Data Yasağı
+
+```
+⛔ STRICT RULE: Sistemde hiçbir yerde MOCK DATA (sahte/statik veri)
+kullanılmayacaktır.
+
+• Frontend'teki tüm Selection Box'lar (Dropdown), Backend API
+  üzerinden eğitilmiş ML veri setinden (dataset) beslenecektir.
+• Hardcoded listeler, sahte JSON dosyaları veya placeholder veriler
+  KESİNLİKLE YASAKTIR.
+• Geliştirme/test sırasında geçici mock data gerekirse, bu açıkça
+  "// TODO: MOCK — API bağlantısında kaldırılacak" ile işaretlenmeli
+  ve kullanıcıya bildirilmelidir.
+• Nihai üründe hiçbir mock data kalıntısı bulunmayacaktır.
+```
+
+---
+
+### KURAL 8 — Simülasyon Yeri Kısıtlaması
+
+```
+⛔ STRICT RULE: Benchmark simülasyonu tarayıcıda (browser içinde)
+ÇALIŞTIRILMAYACAKTIR.
+
+• Simülasyon yalnızca kullanıcının bilgisayarına indirilen
+  "Desktop Simulation App" tarafından yürütülür.
+• Simulation App sonuçları Backend API'ye POST eder.
+• Web sitesinde simülasyon süresince "Analyzing..." bekleme
+  ekranı gösterilir.
+• Frontend'de simülasyon mantığı veya ML inference kodu
+  BULUNMAYACAKTIR.
+```
+
+---
+
+### KURAL 9 — Kod Kalitesi Standartları
 
 ```
 ⛔ STRICT RULE: Üretilen her kod parçası aşağıdaki standartlara
@@ -291,13 +373,14 @@ flowchart TD
 
 ### 7.2. Geliştirme Sırası (Önerilen)
 
-| Sıra | Katman                     | Teknoloji                      | Açıklama                                         |
-| ---- | -------------------------- | ------------------------------ | ------------------------------------------------ |
-| 1    | **Backend API**            | Python + FastAPI               | REST API iskeleti, endpoint tanımları              |
-| 2    | **ML Model Entegrasyonu**  | Scikit-learn + Joblib          | `predict_fps.py`'yi FastAPI endpoint'e bağla       |
-| 3    | **Detection App**          | psutil / GPUtil / cpuinfo      | Donanım otomatik algılama modülü                   |
-| 4    | **Frontend Entegrasyonu**  | HTML/CSS/JS veya React         | Mevcut UI'ı backend API'lara bağla                 |
-| 5    | **End-to-End Test**        | pytest + manuel test           | Tüm akışın uçtan uca doğrulanması                  |
+| Sıra | Katman                     | Teknoloji                      | Açıklama                                                     |
+| ---- | -------------------------- | ------------------------------ | ------------------------------------------------------------ |
+| 1    | **Frontend Refactoring**   | HTML/CSS/JS veya React         | Mock data temizliği, Selection Box'lar, Analyzing state       |
+| 2    | **Backend API**            | Python + FastAPI               | REST API + WebSocket, veri servisi, endpoint tanımları         |
+| 3    | **ML Model Entegrasyonu**  | Scikit-learn + Joblib          | `predict_fps.py`'yi Backend/Simulation App'e bağla            |
+| 4    | **Detection App**          | psutil / GPUtil / cpuinfo      | Masaüstü donanım tarama istemcisi                             |
+| 5    | **Simulation App**         | Python veya Electron/C#        | Masaüstü benchmark simülasyon istemcisi                       |
+| 6    | **End-to-End Test**        | pytest + manuel test           | Tüm Hub & Spoke akışının uçtan uca doğrulanması              |
 
 > [!IMPORTANT]
 > Bu sıralama önerilen yaklaşımdır. Kullanıcı farklı bir sıralama talep ederse,
@@ -308,7 +391,7 @@ flowchart TD
 - Commit mesajları **İngilizce** ve açıklayıcı olacak.
 - Her aşama tamamlandığında bir commit atılacak.
 - Branch stratejisi: `feature/<katman-adı>/<aşama-numarası>` formatı önerilir.
-- Örnek: `feature/backend-api/stage-1-scaffold`
+- Örnek: `feature/simulation-app/stage-1-scaffold`
 
 ---
 
@@ -327,32 +410,64 @@ flowchart TD
 
 ### 8.2. FastAPI Backend Tasarım İlkeleri
 
-- RESTful endpoint yapısı.
+- RESTful endpoint yapısı + WebSocket desteği.
 - JSON request/response formatı.
 - Pydantic modelleri ile input validation.
 - Anlamlı HTTP status kodları (200, 400, 404, 422, 500).
 - CORS middleware — frontend ihtiyaçlarına göre.
 - Hata mesajları kullanıcı dostu ama hassas bilgi sızdırmayan formatta.
+- Session/token yönetimi — masaüstü istemcileri ile web arasında bağlam paylaşımı.
 
 ### 8.3. Planlanan API Endpoint'leri (Taslak)
 
+> **Giriş Noktası:** `uvicorn server:app --reload --port 8000`
+> (`main.py` DEĞİL — çakışmayı önlemek için `server.py` kullanılır)
+
 ```
-GET  /api/health                → Sunucu sağlık kontrolü
-POST /api/predict               → FPS tahmin isteği
-GET  /api/games                 → Desteklenen oyun listesi
-GET  /api/hardware/cpus         → Veritabanındaki CPU listesi
-GET  /api/hardware/gpus         → Veritabanındaki GPU listesi
-POST /api/detect                → Detection App sonuçlarını alma
+# ─── Veri Servisi (Frontend Dropdown'ları besler — Dataset'ten) ───
+GET  /api/health                     → Sunucu sağlık kontrolü
+GET  /api/hardware/cpus              → Dataset'ten CPU listesi
+GET  /api/hardware/gpus              → Dataset'ten GPU listesi
+GET  /api/hardware/rams              → Dataset'ten RAM seçenekleri
+GET  /api/hardware/ssds              → Dataset'ten SSD seçenekleri
+GET  /api/games                      → Dataset'ten oyun listesi
+GET  /api/games/{game_id}/maps       → Oyuna ait harita listesi
+GET  /api/resolutions                → Desteklenen çözünürlükler
+
+# ─── Masaüstü İstemci Endpoint'leri ───
+POST /api/detect                     → Detection App donanım verisi alma
+POST /api/simulation/results         → Simulation App benchmark sonuçları alma
+
+# ─── Gerçek Zamanlı İletişim ───
+WS   /ws/simulation/{session_id}     → Frontend'e canlı simülasyon durumu akışı
 ```
 
 > [!NOTE]
 > Bu endpoint listesi taslaktır ve Backend API katmanı planlanırken
 > kullanıcı ile birlikte kesinleştirilecektir.
 
-### 8.4. Güvenlik Kuralları
+### 8.4. Frontend UI Bileşenleri
+
+| Bileşen                     | Tür             | Açıklama                                              |
+| --------------------------- | --------------- | ----------------------------------------------------- |
+| **CPU Selection Box**       | Dropdown        | Dataset'ten beslenen, arama destekli açılır kutu       |
+| **GPU Selection Box**       | Dropdown        | Dataset'ten beslenen, arama destekli açılır kutu       |
+| **RAM Selection Box**       | Dropdown        | Kapasite + frekans seçimi                              |
+| **SSD Selection Box**       | Dropdown        | Model / tür seçimi                                    |
+| **Çözünürlük Selection Box**| Dropdown        | 720p / 1080p / 1440p / 4K                             |
+| **Oyun / Harita Selection** | Dropdown (x2)   | Oyun seçimi → harita seçimi (kaskat)                   |
+| **Analyzing State Ekranı**  | Overlay / Modal | Simülasyon sırasında ilerleme çubuğu + aşama metinleri|
+| **Results Dashboard**       | Panel           | FPS, sıcaklık, RPM, clock, bottleneck gösterimi       |
+
+> [!IMPORTANT]
+> Frontend'te **slider/sürüklemeli yapı KULLANILMAYACAKTIR.**
+> Tüm donanım seçimleri Selection Box (Dropdown) ile yapılacaktır.
+
+### 8.5. Güvenlik Kuralları
 
 - Kullanıcı girdileri her zaman sanitize edilecek.
 - FastAPI Pydantic modelleri ile otomatik input validation.
+- Masaüstü istemci ↔ API iletişiminde kimlik doğrulama (token/session).
 - Hata mesajları hassas bilgi sızdırmayacak (stack trace vb. prod'da kapalı).
 - `.env` dosyaları `.gitignore`'a eklenecek.
 - CORS origin'leri production'da kısıtlanacak.
@@ -365,6 +480,7 @@ POST /api/detect                → Detection App sonuçlarını alma
 SeeFps/
 ├── CLAUDE.md                        # ← Bu dosya (proje kuralları)
 ├── README.md                        # Proje açıklaması
+├── Roadmap.md                       # Geliştirme yol haritası
 ├── .gitignore
 ├── .env.example                     # Ortam değişkenleri şablonu
 │
@@ -376,8 +492,8 @@ SeeFps/
 │   ├── a.csv                        #    Ham veri seti A
 │   └── b.csv                        #    Ham veri seti B
 │
-├── backend/                         # 🔲 KURULACAK — FastAPI
-│   ├── main.py                      #    FastAPI uygulama giriş noktası
+├── backend/                         # 🔲 KURULACAK — FastAPI (Hub Core)
+│   ├── server.py                    #    ⚠️ FastAPI giriş noktası (main.py DEĞİL)
 │   ├── requirements.txt             #    Python bağımlılıkları
 │   ├── .env                         #    Ortam değişkenleri (gitignore)
 │   ├── config/
@@ -385,10 +501,13 @@ SeeFps/
 │   ├── routers/
 │   │   ├── predict.py               #    /api/predict endpoint'i
 │   │   ├── games.py                 #    /api/games endpoint'i
-│   │   └── hardware.py              #    /api/hardware endpoint'leri
+│   │   ├── hardware.py              #    /api/hardware endpoint'leri
+│   │   ├── detection.py             #    /api/detect endpoint'i
+│   │   └── simulation.py            #    /api/simulation + WebSocket
 │   ├── services/
-│   │   ├── ml_service.py            #    ML model wrapper/adapter
-│   │   └── benchmark_service.py     #    Sanal benchmark simülasyonu
+│   │   ├── ml_service.py            #    predict_fps.py wrapper/adapter (import tahmin_et)
+│   │   ├── data_service.py          #    predict_fps.py'den load_and_prepare_data() ile veri erişim
+│   │   └── session_service.py       #    Session/token yönetimi
 │   ├── models/
 │   │   └── schemas.py               #    Pydantic request/response modelleri
 │   ├── utils/
@@ -396,21 +515,31 @@ SeeFps/
 │   └── tests/
 │       └── test_predict.py          #    Birim testleri
 │
-├── frontend/                        # 🔲 ENTEGRE EDİLECEK
+├── frontend/                        # 🔲 REFACTOR EDİLECEK (Lovable → Production)
 │   ├── index.html                   #    Ana sayfa
 │   ├── css/
 │   │   └── style.css                #    Stil dosyası
 │   ├── js/
-│   │   └── app.js                   #    Uygulama mantığı
+│   │   ├── app.js                   #    Uygulama mantığı
+│   │   └── apiService.js            #    API iletişim katmanı
 │   └── assets/
 │       ├── images/                  #    Görseller
 │       └── fonts/                   #    Yazı tipleri
 │
-└── detection/                       # 🔲 KURULACAK
-    ├── detector.py                  #    Donanım algılama betiği
+├── detection/                       # 🔲 KURULACAK — Masaüstü İstemci (Spoke 1)
+│   ├── detector.py                  #    Donanım algılama betiği
+│   ├── api_client.py                #    Backend API iletişim modülü
+│   ├── requirements.txt             #    Bağımlılıklar
+│   └── tests/
+│       └── test_detector.py         #    Birim testleri
+│
+└── simulation/                      # 🔲 KURULACAK — Masaüstü İstemci (Spoke 2)
+    ├── simulator.py                 #    Benchmark simülasyon motoru
+    ├── ml_adapter.py                #    ML model wrapper (predict_fps.py adapter)
+    ├── api_client.py                #    Backend API iletişim modülü
     ├── requirements.txt             #    Bağımlılıklar
     └── tests/
-        └── test_detector.py         #    Birim testleri
+        └── test_simulator.py        #    Birim testleri
 ```
 
 > [!NOTE]
@@ -433,6 +562,8 @@ SeeFps/
 | 8  | **Tech stack'e sadık kal**       | Bölüm 2'deki listeye kesinlikle uy. İstisna için kullanıcı onayı al.  |
 | 9  | **Küçük adımlar at**             | Büyük monolitik değişiklikler yerine küçük, gözden geçirilebilir adımlar.|
 | 10 | **Mevcut dosyaları koru**        | `TrainedData/` içeriğini değiştirme, wrapper/adapter pattern kullan.   |
+| 11 | **Mock data kullanma**           | Her zaman ML dataset'ten beslen. Sahte veri kesinlikle yasak.          |
+| 12 | **Simülasyonu tarayıcıya koyma** | Benchmark mantığı yalnızca Desktop Simulation App'te çalışır.          |
 
 ---
 
@@ -466,46 +597,76 @@ Yukarıdaki işlemler tamamlandı.
 
 ## 12. Katmanlar Arası Entegrasyon Sözleşmesi
 
-### 12.1. Frontend → Backend API
+### 12.1. Frontend → Backend API (Dropdown Veri Besleme)
 
 ```json
-// POST /api/predict — Request Body
-{
-  "cpu_name": "string",
-  "gpu_name": "string",
-  "game_name": "string",
-  "game_resolution": 1080.0,
-  "game_setting": "max"
-}
-
-// POST /api/predict — Response Body
+// GET /api/hardware/cpus — Response
 {
   "success": true,
-  "data": {
-    "avg_fps": 144.5,
-    "max_fps": 180.2,
-    "min_fps": 98.7,
-    "cpu_temp": 72,
-    "gpu_temp": 68,
-    "cpu_clock": 4200,
-    "gpu_clock": 1800,
-    "fan_rpm": 1450
-  }
+  "data": [
+    { "id": "cpu_001", "name": "Intel Core i9-9900K", "cores": 8, "threads": 16 },
+    { "id": "cpu_002", "name": "AMD Ryzen 5 3600", "cores": 6, "threads": 12 }
+  ]
+}
+
+// GET /api/games — Response
+{
+  "success": true,
+  "data": [
+    { "id": "game_001", "name": "Fortnite", "maps": ["map_001", "map_002"] },
+    { "id": "game_002", "name": "Dota 2", "maps": ["map_003"] }
+  ]
 }
 ```
 
-### 12.2. Detection App → Frontend
+### 12.2. Detection App → Backend API
 
 ```json
-// Detection Result Format
+// POST /api/detect — Request Body (Detection App gönderir)
 {
+  "session_id": "abc-123",
   "cpu_name": "Intel Core i9-9900K",
   "gpu_name": "NVIDIA RTX 2080 Ti",
   "ram_total_gb": 32,
+  "ram_type": "DDR4",
   "ssd_model": "Samsung 970 EVO",
   "os": "Windows 10",
   "resolution": "1920x1080"
 }
+```
+
+### 12.3. Simulation App → Backend API
+
+```json
+// POST /api/simulation/results — Request Body (Simulation App gönderir)
+{
+  "session_id": "abc-123",
+  "status": "completed",
+  "results": {
+    "avg_fps": 144.5,
+    "max_fps": 180.2,
+    "min_fps": 98.7,
+    "fps_timeline": [120, 135, 144, 155, 148, 142],
+    "cpu_temp_avg": 72,
+    "gpu_temp_avg": 68,
+    "cpu_clock_avg": 4200,
+    "gpu_clock_avg": 1800,
+    "fan_rpm_avg": 1450,
+    "bottleneck": "GPU",
+    "benchmark_duration_sec": 45
+  }
+}
+```
+
+### 12.4. Backend → Frontend (WebSocket Simülasyon Durum Akışı)
+
+```json
+// WS /ws/simulation/{session_id} — Server → Client mesajları
+{ "stage": "initializing", "progress": 10, "message": "Ortam kuruluyor..." }
+{ "stage": "gpu_stress",   "progress": 40, "message": "GPU yük testi..." }
+{ "stage": "cpu_stress",   "progress": 60, "message": "CPU yük testi..." }
+{ "stage": "calculating",  "progress": 85, "message": "Sonuçlar hesaplanıyor..." }
+{ "stage": "completed",    "progress": 100, "message": "Tamamlandı!", "redirect": "/results" }
 ```
 
 > [!IMPORTANT]
@@ -514,6 +675,6 @@ Yukarıdaki işlemler tamamlandı.
 
 ---
 
-> **Son Güncelleme:** 2026-06-16
-> **Versiyon:** 2.0.0
+> **Son Güncelleme:** 2026-06-17
+> **Versiyon:** 3.1.0
 > **Hazırlayan:** AI Mimari Asistanı

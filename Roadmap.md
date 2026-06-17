@@ -140,24 +140,40 @@ Bağımlılık: Phase 1'in tamamlanmış olması tercih edilir ancak
 Çıktı:      Çalışan FastAPI sunucusu + tüm endpoint'ler + veri entegrasyonu.
 ```
 
+> [!WARNING]
+> **Dosya İsimlendirme Kısıtlaması:**
+> Projede halihazırda `TrainedData/main.py` (veri temizleme betiği) bulunmaktadır.
+> FastAPI giriş noktası **`server.py`** olarak adlandırılacaktır — çakışmayı önlemek için.
+> ML tahmin motoru `TrainedData/predict_fps.py` dosyasında yer alır ve backend'e
+> **import edilerek** kullanılacaktır.
+
 ---
 
 ### Görev 2.1 — Dataset Entegrasyonu & Dropdown API Endpoint'leri
 
-> Eğitilmiş dataset'i (CSV) Backend'e entegre et. Frontend'teki Dropdown
+> Eğitilmiş dataset'i Backend'e entegre et. Frontend'teki Dropdown
 > kutularını dolduracak CPU, GPU, RAM, SSD ve oyun listesi endpoint'lerini yaz.
+>
+> **Veri Kaynağı Kuralı:** Dropdown listeleri, `predict_fps.py` dosyasındaki
+> kategorik kolon tanımlarına (`ORDINAL_COLS`, `ONEHOT_COLS`) ve bu dosyanın
+> kullandığı nihai temizlenmiş dataset yapısına (`load_and_prepare_data()`
+> fonksiyonunun çıktısı) uygun olarak çekilecektir. Ham CSV'den rastgele
+> unique değer çekmek YETERSİZDİR — modelin tanıdığı encoding yapısıyla
+> tutarlılık ZORUNLUDUR.
 
-- [ ] FastAPI proje iskeleti oluştur (`main.py`, router'lar, config)
-- [ ] `TrainedData/main_merged.csv`'den benzersiz (unique) değerleri çıkaracak veri servisi yaz
-- [ ] `GET /api/hardware/cpus` → CPU listesi endpoint'i
-- [ ] `GET /api/hardware/gpus` → GPU listesi endpoint'i
+- [ ] FastAPI proje iskeleti oluştur (**`server.py`** ← ana giriş noktası, `main.py` DEĞİL), router'lar, config
+- [ ] `predict_fps.py`'yi analiz et: `ORDINAL_COLS`, `ONEHOT_COLS`, `HIGH_CARDINALITY_DROP` listelerini ve `load_and_prepare_data()` fonksiyonunun çıktı şemasını belgele
+- [ ] Veri servisi (`data_service.py`) oluştur: `predict_fps.py`'nin `load_and_prepare_data()` fonksiyonunu import ederek temizlenmiş dataset'ten dropdown değerlerini çek
+- [ ] `GET /api/hardware/cpus` → CPU listesi endpoint'i (dataset'teki `cpuname` unique değerleri)
+- [ ] `GET /api/hardware/gpus` → GPU listesi endpoint'i (dataset'teki `gpuname` unique değerleri)
 - [ ] `GET /api/hardware/rams` → RAM seçenekleri endpoint'i
 - [ ] `GET /api/hardware/ssds` → SSD seçenekleri endpoint'i
-- [ ] `GET /api/games` → Oyun listesi endpoint'i
+- [ ] `GET /api/games` → Oyun listesi endpoint'i (dataset'teki `gamename` unique değerleri)
 - [ ] `GET /api/games/{game_id}/maps` → Oyuna ait harita listesi endpoint'i
-- [ ] `GET /api/resolutions` → Desteklenen çözünürlükler endpoint'i
+- [ ] `GET /api/resolutions` → Desteklenen çözünürlükler endpoint'i (dataset'teki `gameresolution` unique değerleri)
 - [ ] Pydantic response modelleri oluştur
 - [ ] CORS middleware yapılandır (Frontend origin'leri)
+- [ ] Uvicorn başlatma komutu: `uvicorn server:app --reload --port 8000`
 - [ ] Tüm endpoint'leri Swagger UI (`/docs`) üzerinden doğrula
 
 **🛑 DURMA NOKTASI — Kullanıcıya rapor ver ve onay bekle.**
@@ -182,14 +198,21 @@ Bağımlılık: Phase 1'in tamamlanmış olması tercih edilir ancak
 
 ---
 
-### Görev 2.3 — Simulation Sonuçları: WebSocket / Polling Altyapısı
+### Görev 2.3 — Simulation Sonuçları: WebSocket / Polling Altyapısı & ML Entegrasyonu
 
 > Simulation App'ten gelecek FPS, RPM, sıcaklık sonuçlarını Backend'e alacak
 > ve Frontend'e gerçek zamanlı (veya yakın-gerçek zamanlı) iletecek yapıyı kur.
+>
+> **ML Entegrasyon Kuralı:** `server.py` içinde tahmin motoru olarak
+> `predict_fps.py`'deki `tahmin_et()` fonksiyonu ve/veya `load_model()`
+> fonksiyonu **import edilerek** kullanılacaktır. ML inference mantığı
+> yeniden yazılmayacak, mevcut üretim modülü doğrudan çağrılacaktır.
 
 - [ ] İletişim modelini belirle: **WebSocket** vs **SSE** vs **Long Polling** (kullanıcıya öneri sun)
 - [ ] `POST /api/simulation/results` → Simulation App'ten sonuç alma endpoint'i
 - [ ] `WS /ws/simulation/{session_id}` → Frontend'e canlı durum akışı (veya polling endpoint)
+- [ ] `predict_fps.py`'den `tahmin_et()` ve `load_model()` fonksiyonlarını `server.py`'ye import et
+- [ ] ML inference servis katmanı (`ml_service.py`): `predict_fps.py` fonksiyonlarını wrap eden adapter oluştur
 - [ ] Benchmark ilerleme durumu yönetimi (states: `pending`, `running`, `stage_X`, `completed`, `error`)
 - [ ] Gelen sonuç verisini doğrula ve yapılandır (FPS, sıcaklık, RPM, clock hızları)
 - [ ] Frontend'in "Analyzing..." ekranına beslenecek durum mesajları formatı
@@ -269,15 +292,21 @@ Bağımlılık: Phase 2 — Görev 2.3 (WebSocket/Polling altyapısı hazır olm
 
 > ML modelini (`seefps_model.joblib`) Simulation App'e entegre et veya
 > Backend API üzerinden çağıracak yapıyı kur.
+>
+> **Önemli:** Tahmin motoru `predict_fps.py` içindeki `tahmin_et()` fonksiyonudur.
+> Bu fonksiyon; CPU ismi, GPU ismi, oyun adı, çözünürlük ve ayar parametrelerini
+> alarak model pipeline'ını (feature engineering + preprocessing + inference)
+> otomatik çalıştırır. Tekerleği yeniden icat etmeye GEREK YOKTUR.
 
 - [ ] Entegrasyon modelini belirle (kullanıcıya öneri sun):
-  - **Seçenek A:** Modeli masaüstü uygulamasına gömme (offline inference — `joblib.load`)
-  - **Seçenek B:** Backend API üzerinden tahmin çağrısı (online inference — `POST /api/predict`)
+  - **Seçenek A — Offline:** `predict_fps.py`'yi Simulation App'e dahil et, `tahmin_et()` fonksiyonunu doğrudan çağır (`from predict_fps import tahmin_et, load_model`)
+  - **Seçenek B — Online:** Backend `server.py`'deki ML endpoint'ini çağır (`POST /api/predict`), burada da aynı `tahmin_et()` import edilerek kullanılır
 - [ ] Seçilen yönteme göre model yükleme / API çağrı katmanını oluştur
-- [ ] `predict_fps.py`'deki `feature_engineering()` ve preprocessing pipeline'ını adapter pattern ile entegre et
-- [ ] Donanım + oyun + harita bilgilerini modele girdi olarak hazırlama fonksiyonlarını yaz
+- [ ] `predict_fps.py`'deki `feature_engineering()`, `load_and_prepare_data()` ve preprocessing pipeline'ını adapter pattern ile entegre et
+- [ ] `predict_fps.py`'deki `_get_hardware_row()` fonksiyonunun dataset eşleştirme mantığını kullan
+- [ ] Donanım + oyun + harita bilgilerini `tahmin_et()` fonksiyonunun beklediği parametre formatına dönüştür
 - [ ] Tahmin çıktısını doğrulama: beklenen aralıkta mı? (sanity check)
-- [ ] Birim testi: bilinen girdi → bilinen çıktı eşleşmesi
+- [ ] Birim testi: bilinen girdi → bilinen çıktı eşleşmesi (notebook'taki test case'lerle karşılaştır)
 
 **🛑 DURMA NOKTASI — Kullanıcıya rapor ver ve onay bekle.**
 
@@ -402,8 +431,10 @@ gantt
 3. **Teknoloji kararları kullanıcıya aittir.** AI önerir, kullanıcı karar verir.
 4. **`TrainedData/` klasörü salt okunurdur.** Wrapper/adapter pattern kullanılır.
 5. **Bu dosya yaşayan bir belgedir.** Her faz tamamlandığında güncellenir.
+6. **FastAPI giriş noktası `server.py`'dir, `main.py` DEĞİLDİR.** `TrainedData/main.py` veri temizleme betiğidir; karıştırılmamalıdır.
+7. **ML tahmin motoru `predict_fps.py`'dir.** Tüm inference işlemleri bu dosyadaki `tahmin_et()` fonksiyonu üzerinden yapılır. Yeniden yazılmaz, import edilir.
 
 ---
 
 > **Son Güncelleme:** 2026-06-17
-> **Versiyon:** 1.0.0
+> **Versiyon:** 1.1.0
