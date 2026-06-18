@@ -1,11 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { MatrixRain } from "@/components/MatrixRain";
 import {
-  CPUS, GPUS, RAMS, SSDS, RESOLUTIONS, PLATFORMS,
-  cpuScore, gpuScore, ramScore, ssdScore, resScore,
-  type Game,
-} from "@/components/seefps/data";
+  useCpus,
+  useGpus,
+  useRams,
+  useSsds,
+  useResolutions,
+  useGames,
+} from "@/hooks/useHardwareData";
+import type {
+  SystemSpec,
+  BenchmarkResults,
+  GameItem,
+  GameSelection,
+} from "@/types/types";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -21,20 +30,11 @@ export const Route = createFileRoute("/")({
 
 type Step = "splash" | "system-choice" | "detection" | "manual" | "game" | "benchmark" | "results" | "done";
 
-type SystemSpec = {
-  cpu: string; gpu: string; ram: string; ssd: string; resolution: string; source: "auto" | "manual";
-};
-
-type Results = {
-  maxFps: number; minFps: number; avgFps: number;
-  cpuClocks: number[]; cpuTemp: number; gpuTemp: number; fanRpm: number;
-};
-
 function Index() {
   const [step, setStep] = useState<Step>("splash");
   const [spec, setSpec] = useState<SystemSpec | null>(null);
-  const [game, setGame] = useState<{ platform: string; game: Game; map: string } | null>(null);
-  const [results, setResults] = useState<Results | null>(null);
+  const [game, setGame] = useState<GameSelection | null>(null);
+  const [results, setResults] = useState<BenchmarkResults | null>(null);
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-background text-foreground">
@@ -70,7 +70,7 @@ function Index() {
           />
         )}
         {step === "benchmark" && spec && game && (
-          <Benchmark spec={spec} game={game} onDone={(r) => { setResults(r); setStep("results"); }} />
+          <BenchmarkPending spec={spec} game={game} onDone={(r) => { setResults(r); setStep("results"); }} />
         )}
         {step === "results" && results && spec && game && (
           <ResultsView spec={spec} game={game} results={results} onFinish={() => setStep("done")} />
@@ -127,6 +127,35 @@ function Panel({ children, className = "" }: { children: React.ReactNode; classN
   );
 }
 
+/** API verileri yüklenirken gösterilen loading state */
+function LoadingState({ label }: { label: string }) {
+  return (
+    <div className="flex items-center gap-3 py-4 font-mono text-sm text-primary/70">
+      <div className="h-4 w-4 animate-spin border-2 border-primary border-t-transparent rounded-full" />
+      <span>{label}</span>
+      <span className="animate-blink">_</span>
+    </div>
+  );
+}
+
+/** API bağlantı hatası gösterimi */
+function ApiErrorState({ message, onRetry }: { message: string; onRetry?: () => void }) {
+  return (
+    <Panel>
+      <div className="text-center py-6">
+        <div className="font-mono text-xs uppercase tracking-widest text-destructive/70 mb-2">// connection error</div>
+        <div className="font-mono text-sm text-destructive mb-4">&gt; {message}</div>
+        <div className="font-mono text-xs text-muted-foreground mb-4">
+          Backend API (FastAPI) henüz çalışmıyor. Phase 2 tamamlandığında veriler otomatik yüklenecektir.
+        </div>
+        {onRetry && (
+          <NeonButton variant="ghost" onClick={onRetry}>↻ Tekrar Dene</NeonButton>
+        )}
+      </div>
+    </Panel>
+  );
+}
+
 /* ---------- 1. Splash ---------- */
 
 function Splash({ onEnter }: { onEnter: () => void }) {
@@ -170,8 +199,8 @@ function Splash({ onEnter }: { onEnter: () => void }) {
         <div className="mt-12 flex justify-center">
           <NeonButton onClick={onEnter}>&gt; Press Start</NeonButton>
         </div>
-        <div className="mt-6 flex justify-center gap-2 font-mono text-[10px] uppercase text-muted-foreground">
-          <span>steam</span>·<span>epic</span>·<span>ea</span>·<span>riot</span>·<span>xbox</span>
+        <div className="mt-6 font-mono text-[10px] uppercase text-muted-foreground">
+          powered by machine learning // hub &amp; spoke architecture
         </div>
       </div>
     </div>
@@ -261,61 +290,55 @@ function ChoiceCard({ tag, title, desc, cta, onClick }: { tag: string; title: st
   );
 }
 
-/* ---------- Detection (simulated) ---------- */
+/* ---------- Detection (Desktop App required) ---------- */
 
+/**
+ * Detection bileşeni — Masaüstü Detection App gerekliliğini bildirir.
+ *
+ * Eski versiyon: Sahte (mock) bir tarama animasyonu gösterip hardcoded donanım
+ * bilgisi döndürüyordu. Artık Detection App (Phase 3) indirme yönlendirmesi
+ * ve manuel giriş alternatifi sunuyor.
+ */
 function Detection({ onDone, onBack }: { onDone: (s: SystemSpec) => void; onBack: () => void }) {
-  const [progress, setProgress] = useState(0);
-  const [lines, setLines] = useState<string[]>([]);
-  const log = (l: string) => setLines((p) => [...p, l]);
-
-  useEffect(() => {
-    const messages = [
-      "[probe] initializing kernel hook...",
-      "[cpu] querying msr registers...",
-      "[gpu] scanning pci-e bus...",
-      "[ram] reading SPD profiles...",
-      "[ssd] benchmarking sequential read...",
-      "[display] reading EDID...",
-      "[probe] aggregating hardware fingerprint...",
-      "[probe] handshake complete ✓",
-    ];
-    let i = 0;
-    const id = setInterval(() => {
-      if (i < messages.length) { log(messages[i]); i++; setProgress((i / messages.length) * 100); }
-      else {
-        clearInterval(id);
-        setTimeout(() => onDone({
-          cpu: "AMD Ryzen 7 7800X3D",
-          gpu: "NVIDIA RTX 4070 Super",
-          ram: "32 GB DDR5 6000",
-          ssd: "NVMe Gen4 7000 MB/s",
-          resolution: "1440p (2560x1440)",
-          source: "auto",
-        }), 600);
-      }
-    }, 420);
-    return () => clearInterval(id);
-  }, [onDone]);
-
   return (
     <div className="min-h-screen">
       <Header />
       <div className="mx-auto max-w-3xl px-6 py-16">
         <StepLabel n={2} title="Detection Probe" />
         <Panel>
-          <div className="font-mono text-xs text-primary/70">
-            seefps-probe v1.0 // {Math.round(progress)}%
-          </div>
-          <div className="mt-4 h-2 w-full overflow-hidden border border-primary/30 bg-background">
-            <div className="h-full bg-primary transition-all neon-border" style={{ width: `${progress}%` }} />
-          </div>
-          <div className="mt-6 h-64 overflow-auto bg-background/60 p-4 font-mono text-xs text-primary">
-            {lines.map((l, i) => <div key={i}>&gt; {l}</div>)}
-            <div className="animate-blink">&gt; _</div>
+          <div className="text-center py-8">
+            <div className="font-mono text-xs uppercase tracking-widest text-primary/70 mb-4">
+              // desktop app required
+            </div>
+            <div className="font-[Orbitron] text-2xl font-bold text-primary neon-text mb-6">
+              SeeFps Detection App
+            </div>
+            <div className="max-w-md mx-auto space-y-4 font-mono text-sm text-muted-foreground">
+              <p>
+                &gt; Donanımınızı otomatik taramak için <span className="text-primary">SeeFps Detection App</span>'i
+                bilgisayarınıza indirmeniz gerekmektedir.
+              </p>
+              <p>
+                &gt; Uygulama CPU, GPU, RAM, SSD ve ekran çözünürlüğünüzü otomatik algılayarak
+                güvenli bir şekilde sunucumuza gönderir.
+              </p>
+            </div>
+
+            <div className="mt-8 flex flex-col items-center gap-4">
+              <NeonButton disabled>
+                ↓ Detection App İndir (Yakında)
+              </NeonButton>
+              <div className="font-mono text-xs text-muted-foreground">
+                Phase 3 tamamlandığında aktif olacaktır.
+              </div>
+            </div>
           </div>
         </Panel>
         <div className="mt-6 flex justify-between">
           <NeonButton variant="ghost" onClick={onBack}>← Back</NeonButton>
+          <NeonButton variant="ghost" onClick={() => onBack()}>
+            Manuel Giriş Yap →
+          </NeonButton>
         </div>
       </div>
     </div>
@@ -324,38 +347,116 @@ function Detection({ onDone, onBack }: { onDone: (s: SystemSpec) => void; onBack
 
 /* ---------- Manual input ---------- */
 
+/**
+ * Manual bileşeni — API'den gelen donanım verileriyle Selection yapısı.
+ *
+ * Eski versiyon: data.ts'den hardcoded CPUS, GPUS, RAMS, SSDS, RESOLUTIONS
+ * dizilerini slider ile gösteriyordu. Artık useHardwareData hook'ları
+ * aracılığıyla Backend API'den veri çekiyor.
+ *
+ * NOT: Selector bileşeni şu an hâlâ slider (<input type="range">).
+ * Görev 1.2'de Dropdown (Selection Box) bileşenine dönüştürülecek.
+ */
 function Manual({ initial, onDone, onBack }: { initial: SystemSpec | null; onDone: (s: SystemSpec) => void; onBack: () => void }) {
-  const [cpu, setCpu] = useState(initial?.cpu ?? CPUS[2]);
-  const [gpu, setGpu] = useState(initial?.gpu ?? GPUS[3]);
-  const [ram, setRam] = useState(initial?.ram ?? RAMS[2]);
-  const [ssd, setSsd] = useState(initial?.ssd ?? SSDS[1]);
-  const [resolution, setResolution] = useState(initial?.resolution ?? RESOLUTIONS[0]);
+  const cpuQuery = useCpus();
+  const gpuQuery = useGpus();
+  const ramQuery = useRams();
+  const ssdQuery = useSsds();
+  const resQuery = useResolutions();
+
+  // API'den gelen listelerin name alanlarını çıkar
+  const cpuNames = useMemo(() => cpuQuery.data?.map(c => c.name) ?? [], [cpuQuery.data]);
+  const gpuNames = useMemo(() => gpuQuery.data?.map(g => g.name) ?? [], [gpuQuery.data]);
+  const ramNames = useMemo(() => ramQuery.data?.map(r => r.name) ?? [], [ramQuery.data]);
+  const ssdNames = useMemo(() => ssdQuery.data?.map(s => s.name) ?? [], [ssdQuery.data]);
+  const resNames = useMemo(() => resQuery.data?.map(r => r.name) ?? [], [resQuery.data]);
+
+  const [cpu, setCpu] = useState(initial?.cpu ?? "");
+  const [gpu, setGpu] = useState(initial?.gpu ?? "");
+  const [ram, setRam] = useState(initial?.ram ?? "");
+  const [ssd, setSsd] = useState(initial?.ssd ?? "");
+  const [resolution, setResolution] = useState(initial?.resolution ?? "");
+
+  // Veriler yüklendiğinde varsayılan değerleri ayarla (ilk eleman)
+  const initialized = useMemo(() => {
+    if (!cpu && cpuNames.length > 0) setCpu(cpuNames[0]);
+    if (!gpu && gpuNames.length > 0) setGpu(gpuNames[0]);
+    if (!ram && ramNames.length > 0) setRam(ramNames[0]);
+    if (!ssd && ssdNames.length > 0) setSsd(ssdNames[0]);
+    if (!resolution && resNames.length > 0) setResolution(resNames[0]);
+    return cpuNames.length > 0 && gpuNames.length > 0;
+  }, [cpuNames, gpuNames, ramNames, ssdNames, resNames, cpu, gpu, ram, ssd, resolution]);
+
+  const isLoading = cpuQuery.isLoading || gpuQuery.isLoading || ramQuery.isLoading || ssdQuery.isLoading || resQuery.isLoading;
+  const isError = cpuQuery.isError || gpuQuery.isError || ramQuery.isError || ssdQuery.isError || resQuery.isError;
+  const errorMessage = [cpuQuery.error, gpuQuery.error, ramQuery.error, ssdQuery.error, resQuery.error]
+    .find(e => e)?.message ?? "API bağlantısı kurulamadı";
+
+  const allValid = cpu && gpu && ram && ssd && resolution;
 
   return (
     <div className="min-h-screen">
       <Header />
       <div className="mx-auto max-w-4xl px-6 py-16">
         <StepLabel n={2} title="Manual Specs" />
-        <Panel>
-          <div className="grid gap-6">
-            <Selector label="CPU / Processor" value={cpu} options={CPUS} onChange={setCpu} />
-            <Selector label="GPU / Graphics Card" value={gpu} options={GPUS} onChange={setGpu} />
-            <Selector label="RAM" value={ram} options={RAMS} onChange={setRam} />
-            <Selector label="SSD Speed" value={ssd} options={SSDS} onChange={setSsd} />
-            <Selector label="Screen Resolution" value={resolution} options={RESOLUTIONS} onChange={setResolution} />
+
+        {isLoading && <LoadingState label="Donanım verileri yükleniyor..." />}
+
+        {isError && (
+          <ApiErrorState
+            message={errorMessage}
+            onRetry={() => {
+              cpuQuery.refetch();
+              gpuQuery.refetch();
+              ramQuery.refetch();
+              ssdQuery.refetch();
+              resQuery.refetch();
+            }}
+          />
+        )}
+
+        {!isLoading && !isError && (
+          <>
+            <Panel>
+              <div className="grid gap-6">
+                <Selector label="CPU / Processor" value={cpu} options={cpuNames} onChange={setCpu} />
+                <Selector label="GPU / Graphics Card" value={gpu} options={gpuNames} onChange={setGpu} />
+                <Selector label="RAM" value={ram} options={ramNames} onChange={setRam} />
+                <Selector label="SSD Speed" value={ssd} options={ssdNames} onChange={setSsd} />
+                <Selector label="Screen Resolution" value={resolution} options={resNames} onChange={setResolution} />
+              </div>
+            </Panel>
+            <div className="mt-6 flex justify-between">
+              <NeonButton variant="ghost" onClick={onBack}>← Back</NeonButton>
+              <NeonButton
+                disabled={!allValid}
+                onClick={() => onDone({ cpu, gpu, ram, ssd, resolution, source: "manual" })}
+              >
+                Next →
+              </NeonButton>
+            </div>
+          </>
+        )}
+
+        {(isLoading || isError) && (
+          <div className="mt-6">
+            <NeonButton variant="ghost" onClick={onBack}>← Back</NeonButton>
           </div>
-        </Panel>
-        <div className="mt-6 flex justify-between">
-          <NeonButton variant="ghost" onClick={onBack}>← Back</NeonButton>
-          <NeonButton onClick={() => onDone({ cpu, gpu, ram, ssd, resolution, source: "manual" })}>Next →</NeonButton>
-        </div>
+        )}
       </div>
     </div>
   );
 }
 
+/**
+ * Selector bileşeni — Şu an slider (range input).
+ * Görev 1.2'de Dropdown Selection Box'a dönüştürülecek.
+ *
+ * TODO: GÖREV 1.2 — Bu bileşen <select> veya custom Dropdown ile değiştirilecek.
+ */
 function Selector({ label, value, options, onChange }: { label: string; value: string; options: string[]; onChange: (v: string) => void }) {
   const idx = options.indexOf(value);
+  if (options.length === 0) return null;
   return (
     <div>
       <div className="mb-2 flex items-end justify-between">
@@ -363,7 +464,7 @@ function Selector({ label, value, options, onChange }: { label: string; value: s
         <span className="font-mono text-sm text-foreground neon-text">{value}</span>
       </div>
       <input
-        type="range" min={0} max={options.length - 1} value={idx}
+        type="range" min={0} max={options.length - 1} value={idx >= 0 ? idx : 0}
         onChange={(e) => onChange(options[Number(e.target.value)])}
         className="w-full accent-[oklch(0.82_0.24_142)]"
       />
@@ -376,201 +477,201 @@ function Selector({ label, value, options, onChange }: { label: string; value: s
 
 /* ---------- 3. Game + Map ---------- */
 
-function GamePick({ onDone, onBack }: { onDone: (g: { platform: string; game: Game; map: string }) => void; onBack: () => void }) {
-  const [pIdx, setPIdx] = useState(0);
-  const [gIdx, setGIdx] = useState(0);
-  const [mIdx, setMIdx] = useState(0);
+/**
+ * GamePick bileşeni — API'den gelen oyun ve harita verileriyle seçim.
+ *
+ * Eski versiyon: data.ts'deki hardcoded PLATFORMS dizisinden besleniyordu.
+ * Artık useGames() hook'u aracılığıyla Backend API'den veri çekiyor.
+ */
+function GamePick({ onDone, onBack }: { onDone: (g: GameSelection) => void; onBack: () => void }) {
+  const gamesQuery = useGames();
 
-  const platform = PLATFORMS[pIdx];
-  const game = platform.games[gIdx] ?? platform.games[0];
-  const map = game.maps[mIdx] ?? game.maps[0];
+  const games = useMemo(() => gamesQuery.data ?? [], [gamesQuery.data]);
+
+  // Benzersiz platform listesi
+  const platforms = useMemo(() => {
+    const unique = [...new Set(games.map(g => g.platform))];
+    return unique;
+  }, [games]);
+
+  const [selectedPlatform, setSelectedPlatform] = useState<string>("");
+  const [selectedGameId, setSelectedGameId] = useState<string>("");
+  const [selectedMap, setSelectedMap] = useState<string>("");
+
+  // Platform seçildiğinde ilk oyunu otomatik seç
+  const platformGames = useMemo(() => {
+    return games.filter(g => g.platform === selectedPlatform);
+  }, [games, selectedPlatform]);
+
+  const selectedGame = useMemo(() => {
+    return platformGames.find(g => g.id === selectedGameId) ?? null;
+  }, [platformGames, selectedGameId]);
+
+  const maps = useMemo(() => {
+    return selectedGame?.maps.map(m => m.name) ?? [];
+  }, [selectedGame]);
+
+  // Veriler yüklendiğinde varsayılanları ayarla
+  useMemo(() => {
+    if (!selectedPlatform && platforms.length > 0) {
+      setSelectedPlatform(platforms[0]);
+    }
+  }, [platforms, selectedPlatform]);
+
+  useMemo(() => {
+    if (platformGames.length > 0 && !platformGames.find(g => g.id === selectedGameId)) {
+      setSelectedGameId(platformGames[0].id);
+    }
+  }, [platformGames, selectedGameId]);
+
+  useMemo(() => {
+    if (maps.length > 0 && !maps.includes(selectedMap)) {
+      setSelectedMap(maps[0]);
+    }
+  }, [maps, selectedMap]);
+
+  const canProceed = selectedGame && selectedMap;
 
   return (
     <div className="min-h-screen">
       <Header />
       <div className="mx-auto max-w-4xl px-6 py-16">
         <StepLabel n={3} title="Game & Map" />
-        <Panel>
-          <div className="grid gap-6">
-            <Selector label="Platform" value={platform.name} options={PLATFORMS.map(p => p.name)}
-              onChange={(v) => { setPIdx(PLATFORMS.findIndex(p => p.name === v)); setGIdx(0); setMIdx(0); }} />
-            <Selector label="Game" value={game.name} options={platform.games.map(g => g.name)}
-              onChange={(v) => { setGIdx(platform.games.findIndex(g => g.name === v)); setMIdx(0); }} />
-            <Selector label="Map" value={map} options={game.maps} onChange={(v) => setMIdx(game.maps.indexOf(v))} />
+
+        {gamesQuery.isLoading && <LoadingState label="Oyun listesi yükleniyor..." />}
+
+        {gamesQuery.isError && (
+          <ApiErrorState
+            message={gamesQuery.error?.message ?? "Oyun verisi yüklenemedi"}
+            onRetry={() => gamesQuery.refetch()}
+          />
+        )}
+
+        {!gamesQuery.isLoading && !gamesQuery.isError && games.length > 0 && (
+          <>
+            <Panel>
+              <div className="grid gap-6">
+                <Selector
+                  label="Platform"
+                  value={selectedPlatform}
+                  options={platforms}
+                  onChange={(v) => { setSelectedPlatform(v); setSelectedGameId(""); setSelectedMap(""); }}
+                />
+                <Selector
+                  label="Game"
+                  value={selectedGame?.name ?? ""}
+                  options={platformGames.map(g => g.name)}
+                  onChange={(v) => {
+                    const g = platformGames.find(pg => pg.name === v);
+                    if (g) { setSelectedGameId(g.id); setSelectedMap(""); }
+                  }}
+                />
+                <Selector
+                  label="Map"
+                  value={selectedMap}
+                  options={maps}
+                  onChange={setSelectedMap}
+                />
+              </div>
+              {selectedGame && (
+                <div className="mt-6 border-t border-primary/20 pt-4 font-mono text-xs text-muted-foreground">
+                  ENGINE: <span className="text-primary">{selectedGame.engine}</span>
+                </div>
+              )}
+            </Panel>
+            <div className="mt-6 flex justify-between">
+              <NeonButton variant="ghost" onClick={onBack}>← Back</NeonButton>
+              <NeonButton
+                disabled={!canProceed}
+                onClick={() => {
+                  if (selectedGame && selectedMap) {
+                    onDone({ platform: selectedPlatform, game: selectedGame, map: selectedMap });
+                  }
+                }}
+              >
+                Run Benchmark →
+              </NeonButton>
+            </div>
+          </>
+        )}
+
+        {(gamesQuery.isLoading || gamesQuery.isError) && (
+          <div className="mt-6">
+            <NeonButton variant="ghost" onClick={onBack}>← Back</NeonButton>
           </div>
-          <div className="mt-6 border-t border-primary/20 pt-4 font-mono text-xs text-muted-foreground">
-            ENGINE: <span className="text-primary">{game.engine}</span>
-          </div>
-        </Panel>
-        <div className="mt-6 flex justify-between">
-          <NeonButton variant="ghost" onClick={onBack}>← Back</NeonButton>
-          <NeonButton onClick={() => onDone({ platform: platform.name, game, map })}>Run Benchmark →</NeonButton>
-        </div>
+        )}
       </div>
     </div>
   );
 }
 
-/* ---------- 4. Benchmark simulation ---------- */
+/* ---------- 4. Benchmark — Desktop Simulation App Pending ---------- */
 
-function Benchmark({ spec, game, onDone }: { spec: SystemSpec; game: { platform: string; game: Game; map: string }; onDone: (r: Results) => void }) {
-  const [progress, setProgress] = useState(0);
-  const [phase, setPhase] = useState("loading textures");
-  const [events, setEvents] = useState<string[]>([]);
-  const [liveFps, setLiveFps] = useState(0);
-  const startRef = useRef(Date.now());
-  const fpsSamplesRef = useRef<number[]>([]);
-
-  // Estimate target fps from specs
-  const targetFps = useMemo(() => {
-    const base = 60 * cpuScore(spec.cpu) * gpuScore(spec.gpu)
-      * ramScore(spec.ram) * ssdScore(spec.ssd) * resScore(spec.resolution) * game.game.weight;
-    return Math.round(base);
-  }, [spec, game]);
-
-  useEffect(() => {
-    const phases = [
-      "loading textures",
-      "compiling shaders",
-      "baking shadow maps",
-      "warming up engine",
-      "simulating gameplay",
-      "engine-specific FX pass",
-      "finalizing benchmark",
-    ];
-    const gameFx: Record<string, string[]> = {
-      cs2: ["[CS2] smoke grenade detonated", "[CS2] molotov spread on B-site", "[CS2] flashbang ignited"],
-      valorant: ["[VAL] Breach ultimate cast", "[VAL] Omen blind deployed", "[VAL] Sage wall raised"],
-      lol: ["[LoL] 5 ultimates landed on dragon", "[LoL] teamfight @ baron"],
-      forza: ["[Forza] water splash reflection", "[Forza] dynamic weather shift"],
-      fortnite: ["[FN] storm circle closed", "[FN] building physics burst"],
-      bf2042: ["[BF2042] tornado spawned", "[BF2042] level destruction event"],
-      apex: ["[APEX] ring closing"],
-      dota2: ["[DOTA2] roshan teamfight"],
-      fc24: ["[FC24] crowd reaction"],
-      rocket: ["[RL] boost particles"],
-      starfield: ["[STAR] city LOD swap"],
-    };
-    const fx = gameFx[game.game.id] ?? ["[engine] particle burst"];
-
-    const duration = 6000;
-    const start = Date.now();
-    const id = setInterval(() => {
-      const elapsed = Date.now() - start;
-      const p = Math.min(100, (elapsed / duration) * 100);
-      setProgress(p);
-      setPhase(phases[Math.min(phases.length - 1, Math.floor((p / 100) * phases.length))]);
-      // live fps wobble
-      const wobble = (Math.random() - 0.5) * targetFps * 0.4;
-      const sample = Math.max(15, Math.round(targetFps + wobble));
-      setLiveFps(sample);
-      fpsSamplesRef.current.push(sample);
-      if (Math.random() < 0.18) {
-        setEvents((e) => [fx[Math.floor(Math.random() * fx.length)], ...e].slice(0, 8));
-      }
-      if (p >= 100) {
-        clearInterval(id);
-        const samples = fpsSamplesRef.current;
-        const max = Math.max(...samples);
-        const min = Math.min(...samples);
-        const avg = Math.round(samples.reduce((a, b) => a + b, 0) / samples.length);
-        const cores = Math.max(4, Math.min(16, Math.round(4 + cpuScore(spec.cpu) * 4)));
-        const baseClock = 3.2 + cpuScore(spec.cpu) * 1.4;
-        const cpuClocks = Array.from({ length: cores }, () =>
-          +(baseClock + (Math.random() - 0.5) * 0.8).toFixed(2)
-        );
-        const load = avg / Math.max(targetFps, 1);
-        const cpuTemp = Math.round(55 + load * 30 + Math.random() * 6);
-        const gpuTemp = Math.round(58 + gpuScore(spec.gpu) * 6 + (Math.random() * 8));
-        const fanRpm = Math.round(1200 + load * 1800 + Math.random() * 400);
-        setTimeout(() => onDone({ maxFps: max, minFps: min, avgFps: avg, cpuClocks, cpuTemp, gpuTemp, fanRpm }), 500);
-      }
-    }, 120);
-    return () => clearInterval(id);
-  }, [onDone, spec, targetFps, game.game.id]);
-
+/**
+ * BenchmarkPending bileşeni — Desktop Simulation App bekleme ekranı.
+ *
+ * Eski versiyon: Tarayıcıda sahte bir benchmark simülasyonu çalıştırıp
+ * mock FPS/sıcaklık/RPM değerleri üretiyordu. Bu KURAL 8 ihlaliydi
+ * (simülasyon tarayıcıda çalışmaz).
+ *
+ * Şu an: Desktop Simulation App'in indirilmesi gerektiğini bildirir.
+ * Görev 1.3'te "Analyzing..." bekleme ekranı (WebSocket ile) geliştirilecek.
+ * Phase 4'te gerçek Simulation App entegrasyonu yapılacak.
+ */
+function BenchmarkPending({
+  spec, game, onDone,
+}: { spec: SystemSpec; game: GameSelection; onDone: (r: BenchmarkResults) => void }) {
   return (
     <div className="min-h-screen">
       <Header />
       <div className="mx-auto max-w-5xl px-6 py-12">
         <StepLabel n={4} title="Virtual Environment" />
         <p className="mb-6 font-mono text-sm text-muted-foreground">
-          &gt; rendering <span className="text-primary">{game.game.name}</span> // map: <span className="text-primary">{game.map}</span> // engine: <span className="text-primary">{game.game.engine}</span>
+          &gt; hedef: <span className="text-primary">{game.game.name}</span> // map: <span className="text-primary">{game.map}</span> // engine: <span className="text-primary">{game.game.engine}</span>
         </p>
 
-        <div className="grid gap-6 lg:grid-cols-3">
-          {/* Faux viewport */}
-          <Panel className="lg:col-span-2">
-            <div className="relative aspect-video w-full overflow-hidden bg-background">
-              {/* synthesized scene */}
-              <div
-                className="absolute inset-0"
-                style={{
-                  background:
-                    "radial-gradient(ellipse at 30% 70%, oklch(0.35 0.18 145 / 0.7) 0%, transparent 60%), radial-gradient(ellipse at 70% 30%, oklch(0.5 0.22 142 / 0.5) 0%, transparent 60%), linear-gradient(180deg, #001a0c 0%, #000 100%)",
-                }}
-              />
-              {/* wireframe scene */}
-              <svg className="absolute inset-0 h-full w-full" viewBox="0 0 800 450" preserveAspectRatio="none">
-                <defs>
-                  <linearGradient id="g" x1="0" x2="0" y1="0" y2="1">
-                    <stop offset="0" stopColor="oklch(0.82 0.24 142)" stopOpacity="0.0" />
-                    <stop offset="1" stopColor="oklch(0.82 0.24 142)" stopOpacity="0.5" />
-                  </linearGradient>
-                </defs>
-                {/* ground grid */}
-                {Array.from({ length: 14 }).map((_, i) => (
-                  <line key={`h${i}`} x1="0" y1={300 + i * 12} x2="800" y2={300 + i * 12} stroke="oklch(0.5 0.2 145 / 0.3)" />
-                ))}
-                {Array.from({ length: 20 }).map((_, i) => {
-                  const x = 400 + (i - 10) * 80;
-                  return <line key={`v${i}`} x1={400} y1="300" x2={x} y2="450" stroke="oklch(0.5 0.2 145 / 0.3)" />;
-                })}
-                {/* buildings */}
-                <rect x="80" y="180" width="100" height="120" fill="url(#g)" stroke="oklch(0.82 0.24 142)" />
-                <rect x="220" y="140" width="120" height="160" fill="url(#g)" stroke="oklch(0.82 0.24 142)" />
-                <rect x="480" y="160" width="100" height="140" fill="url(#g)" stroke="oklch(0.82 0.24 142)" />
-                <rect x="620" y="200" width="120" height="100" fill="url(#g)" stroke="oklch(0.82 0.24 142)" />
-                {/* crosshair */}
-                <g stroke="oklch(0.92 0.2 142)" strokeWidth="1.5">
-                  <line x1="400" y1="210" x2="400" y2="240" />
-                  <line x1="400" y1="270" x2="400" y2="300" />
-                  <line x1="370" y1="255" x2="395" y2="255" />
-                  <line x1="405" y1="255" x2="430" y2="255" />
-                </g>
-              </svg>
-              {/* HUD overlay */}
-              <div className="absolute left-3 top-3 font-mono text-xs text-primary neon-text">
-                <div>FPS: <span className="text-2xl font-bold">{liveFps}</span></div>
-                <div>FRAME: {Math.round((1000 / Math.max(liveFps, 1)) * 10) / 10} ms</div>
-              </div>
-              <div className="absolute right-3 top-3 font-mono text-xs text-primary/80">
-                {game.game.name.toUpperCase()}
-              </div>
-              <div className="absolute left-3 bottom-3 right-3 font-mono text-[10px] text-primary/80">
-                {phase.toUpperCase()} <span className="animate-blink">_</span>
-              </div>
-              {/* scanlines */}
-              <div className="scanlines absolute inset-0" />
+        <Panel>
+          <div className="text-center py-12">
+            <div className="font-mono text-xs uppercase tracking-widest text-primary/70 mb-4">
+              // desktop simulation app required
             </div>
-            <div className="mt-3 h-2 w-full overflow-hidden border border-primary/30">
-              <div className="h-full bg-primary" style={{ width: `${progress}%` }} />
+            <div className="font-[Orbitron] text-2xl font-bold text-primary neon-text mb-6">
+              SeeFps Simulation App
             </div>
-          </Panel>
+            <div className="max-w-lg mx-auto space-y-4 font-mono text-sm text-muted-foreground">
+              <p>
+                &gt; Benchmark simülasyonu tarayıcıda <span className="text-destructive">çalışmaz</span>.
+              </p>
+              <p>
+                &gt; <span className="text-primary">SeeFps Simulation App</span>'i indirerek bilgisayarınızda
+                sanal benchmark koşturabilirsiniz. Sonuçlar otomatik olarak bu sayfaya gönderilecektir.
+              </p>
+            </div>
 
-          <Panel>
-            <div className="font-mono text-xs uppercase tracking-widest text-primary/70">live events</div>
-            <div className="mt-3 h-72 overflow-hidden font-mono text-xs text-primary">
-              {events.length === 0 && <div className="text-muted-foreground">waiting for engine events...</div>}
-              {events.map((e, i) => (
-                <div key={`${e}-${i}`} className="border-l-2 border-primary/50 pl-2 py-1">{e}</div>
-              ))}
+            {/* Seçilen donanım özeti */}
+            <div className="mt-8 max-w-md mx-auto">
+              <Panel>
+                <div className="font-mono text-xs uppercase tracking-widest text-primary/70 mb-3">selected config</div>
+                <div className="grid gap-1 font-mono text-xs text-left">
+                  <div><span className="text-muted-foreground">CPU:</span> <span className="text-primary">{spec.cpu}</span></div>
+                  <div><span className="text-muted-foreground">GPU:</span> <span className="text-primary">{spec.gpu}</span></div>
+                  <div><span className="text-muted-foreground">RAM:</span> <span className="text-primary">{spec.ram}</span></div>
+                  <div><span className="text-muted-foreground">SSD:</span> <span className="text-primary">{spec.ssd}</span></div>
+                  <div><span className="text-muted-foreground">RES:</span> <span className="text-primary">{spec.resolution}</span></div>
+                </div>
+              </Panel>
             </div>
-            <div className="mt-4 border-t border-primary/20 pt-3 font-mono text-[10px] text-muted-foreground">
-              user input <span className="text-destructive">DISABLED</span> during benchmark
+
+            <div className="mt-8 flex flex-col items-center gap-4">
+              <NeonButton disabled>
+                ↓ Simulation App İndir (Yakında)
+              </NeonButton>
+              <div className="font-mono text-xs text-muted-foreground">
+                Phase 4 tamamlandığında aktif olacaktır. Görev 1.3'te "Analyzing..." ekranı eklenecek.
+              </div>
             </div>
-          </Panel>
-        </div>
+          </div>
+        </Panel>
       </div>
     </div>
   );
@@ -578,9 +679,15 @@ function Benchmark({ spec, game, onDone }: { spec: SystemSpec; game: { platform:
 
 /* ---------- 5. Results ---------- */
 
+/**
+ * ResultsView bileşeni — Benchmark sonuçları.
+ *
+ * Simulation App (Phase 4) tamamlandığında, sonuçlar Backend API üzerinden
+ * bu bileşene aktarılacak. Şimdilik tip tanımları hazır.
+ */
 function ResultsView({
   spec, game, results, onFinish,
-}: { spec: SystemSpec; game: { platform: string; game: Game; map: string }; results: Results; onFinish: () => void }) {
+}: { spec: SystemSpec; game: GameSelection; results: BenchmarkResults; onFinish: () => void }) {
   return (
     <div className="min-h-screen">
       <Header />
@@ -596,27 +703,10 @@ function ResultsView({
           <FpsCard label="Min (1% low)" value={results.minFps} />
         </div>
 
-        <div className="mt-6 grid gap-6 lg:grid-cols-2">
-          <Panel>
-            <div className="font-mono text-xs uppercase tracking-widest text-primary/70">CPU Clock per Core (GHz)</div>
-            <div className="mt-4 space-y-2">
-              {results.cpuClocks.map((c, i) => (
-                <div key={i} className="flex items-center gap-3">
-                  <span className="w-20 font-mono text-xs text-muted-foreground">core {String(i).padStart(2, "0")}</span>
-                  <div className="relative h-3 flex-1 overflow-hidden border border-primary/30 bg-background">
-                    <div className="h-full bg-primary" style={{ width: `${(c / 6) * 100}%` }} />
-                  </div>
-                  <span className="w-16 text-right font-mono text-sm text-primary neon-text">{c.toFixed(2)}</span>
-                </div>
-              ))}
-            </div>
-          </Panel>
-
-          <div className="grid gap-6">
-            <StatCard label="CPU Temperature" value={`${results.cpuTemp}°C`} sub="package avg" />
-            <StatCard label="GPU Temperature" value={`${results.gpuTemp}°C`} sub="hotspot" />
-            <StatCard label="Fan RPM" value={`${results.fanRpm}`} sub="chassis avg" />
-          </div>
+        <div className="mt-6 grid gap-6 lg:grid-cols-3">
+          <StatCard label="CPU Temperature" value={`${results.cpuTempAvg}°C`} sub="package avg" />
+          <StatCard label="GPU Temperature" value={`${results.gpuTempAvg}°C`} sub="hotspot" />
+          <StatCard label="Fan RPM" value={`${results.fanRpmAvg}`} sub="chassis avg" />
         </div>
 
         <Panel className="mt-6">
@@ -628,6 +718,7 @@ function ResultsView({
             <div><span className="text-muted-foreground">SSD:</span> <span className="text-primary">{spec.ssd}</span></div>
             <div><span className="text-muted-foreground">Display:</span> <span className="text-primary">{spec.resolution}</span></div>
             <div><span className="text-muted-foreground">Source:</span> <span className="text-primary">{spec.source}</span></div>
+            <div><span className="text-muted-foreground">Bottleneck:</span> <span className="text-primary">{results.bottleneck}</span></div>
           </div>
         </Panel>
 
