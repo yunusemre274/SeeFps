@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { MatrixRain } from "@/components/MatrixRain";
+import { NeonCombobox } from "@/components/seefps/NeonCombobox";
+import { AnalyzingScreen } from "@/components/seefps/AnalyzingScreen";
 import {
   useCpus,
   useGpus,
@@ -70,7 +72,7 @@ function Index() {
           />
         )}
         {step === "benchmark" && spec && game && (
-          <BenchmarkPending spec={spec} game={game} onDone={(r) => { setResults(r); setStep("results"); }} />
+          <BenchmarkAnalyzing spec={spec} game={game} onDone={(r) => { setResults(r); setStep("results"); }} />
         )}
         {step === "results" && results && spec && game && (
           <ResultsView spec={spec} game={game} results={results} onFinish={() => setStep("done")} />
@@ -348,14 +350,10 @@ function Detection({ onDone, onBack }: { onDone: (s: SystemSpec) => void; onBack
 /* ---------- Manual input ---------- */
 
 /**
- * Manual bileşeni — API'den gelen donanım verileriyle Selection yapısı.
+ * Manual bileşeni — API'den gelen donanım verileriyle NeonCombobox seçim yapısı.
  *
- * Eski versiyon: data.ts'den hardcoded CPUS, GPUS, RAMS, SSDS, RESOLUTIONS
- * dizilerini slider ile gösteriyordu. Artık useHardwareData hook'ları
- * aracılığıyla Backend API'den veri çekiyor.
- *
- * NOT: Selector bileşeni şu an hâlâ slider (<input type="range">).
- * Görev 1.2'de Dropdown (Selection Box) bileşenine dönüştürülecek.
+ * Görev 1.1: data.ts mock verileri kaldırıldı, useHardwareData hook'larıyla API'ye bağlandı.
+ * Görev 1.2: Slider (input type="range") kaldırıldı, NeonCombobox (arama destekli dropdown) eklendi.
  */
 function Manual({ initial, onDone, onBack }: { initial: SystemSpec | null; onDone: (s: SystemSpec) => void; onBack: () => void }) {
   const cpuQuery = useCpus();
@@ -418,12 +416,52 @@ function Manual({ initial, onDone, onBack }: { initial: SystemSpec | null; onDon
         {!isLoading && !isError && (
           <>
             <Panel>
-              <div className="grid gap-6">
-                <Selector label="CPU / Processor" value={cpu} options={cpuNames} onChange={setCpu} />
-                <Selector label="GPU / Graphics Card" value={gpu} options={gpuNames} onChange={setGpu} />
-                <Selector label="RAM" value={ram} options={ramNames} onChange={setRam} />
-                <Selector label="SSD Speed" value={ssd} options={ssdNames} onChange={setSsd} />
-                <Selector label="Screen Resolution" value={resolution} options={resNames} onChange={setResolution} />
+              <div className="grid gap-6 sm:grid-cols-2">
+                <NeonCombobox
+                  label="CPU / Processor"
+                  placeholder="CPU seçin..."
+                  searchPlaceholder="CPU modeli ara..."
+                  emptyMessage="Bu CPU modeli bulunamadı."
+                  options={cpuNames}
+                  value={cpu}
+                  onChange={setCpu}
+                />
+                <NeonCombobox
+                  label="GPU / Graphics Card"
+                  placeholder="GPU seçin..."
+                  searchPlaceholder="GPU modeli ara..."
+                  emptyMessage="Bu GPU modeli bulunamadı."
+                  options={gpuNames}
+                  value={gpu}
+                  onChange={setGpu}
+                />
+                <NeonCombobox
+                  label="RAM"
+                  placeholder="RAM seçin..."
+                  searchPlaceholder="RAM ara..."
+                  emptyMessage="Bu RAM seçeneği bulunamadı."
+                  options={ramNames}
+                  value={ram}
+                  onChange={setRam}
+                />
+                <NeonCombobox
+                  label="SSD Speed"
+                  placeholder="SSD seçin..."
+                  searchPlaceholder="SSD ara..."
+                  emptyMessage="Bu SSD seçeneği bulunamadı."
+                  options={ssdNames}
+                  value={ssd}
+                  onChange={setSsd}
+                />
+                <NeonCombobox
+                  label="Screen Resolution"
+                  placeholder="Çözünürlük seçin..."
+                  searchPlaceholder="Çözünürlük ara..."
+                  emptyMessage="Bu çözünürlük bulunamadı."
+                  options={resNames}
+                  value={resolution}
+                  onChange={setResolution}
+                />
               </div>
             </Panel>
             <div className="mt-6 flex justify-between">
@@ -448,32 +486,7 @@ function Manual({ initial, onDone, onBack }: { initial: SystemSpec | null; onDon
   );
 }
 
-/**
- * Selector bileşeni — Şu an slider (range input).
- * Görev 1.2'de Dropdown Selection Box'a dönüştürülecek.
- *
- * TODO: GÖREV 1.2 — Bu bileşen <select> veya custom Dropdown ile değiştirilecek.
- */
-function Selector({ label, value, options, onChange }: { label: string; value: string; options: string[]; onChange: (v: string) => void }) {
-  const idx = options.indexOf(value);
-  if (options.length === 0) return null;
-  return (
-    <div>
-      <div className="mb-2 flex items-end justify-between">
-        <label className="font-mono text-xs uppercase tracking-widest text-primary/70">{label}</label>
-        <span className="font-mono text-sm text-foreground neon-text">{value}</span>
-      </div>
-      <input
-        type="range" min={0} max={options.length - 1} value={idx >= 0 ? idx : 0}
-        onChange={(e) => onChange(options[Number(e.target.value)])}
-        className="w-full accent-[oklch(0.82_0.24_142)]"
-      />
-      <div className="mt-1 flex justify-between font-mono text-[10px] text-muted-foreground">
-        <span>{options[0]}</span><span>{options[options.length - 1]}</span>
-      </div>
-    </div>
-  );
-}
+/* Selector bileşeni (slider) Görev 1.2'de NeonCombobox ile değiştirildi. */
 
 /* ---------- 3. Game + Map ---------- */
 
@@ -551,25 +564,34 @@ function GamePick({ onDone, onBack }: { onDone: (g: GameSelection) => void; onBa
           <>
             <Panel>
               <div className="grid gap-6">
-                <Selector
+                <NeonCombobox
                   label="Platform"
-                  value={selectedPlatform}
+                  placeholder="Platform seçin..."
+                  searchPlaceholder="Platform ara..."
+                  emptyMessage="Platform bulunamadı."
                   options={platforms}
+                  value={selectedPlatform}
                   onChange={(v) => { setSelectedPlatform(v); setSelectedGameId(""); setSelectedMap(""); }}
                 />
-                <Selector
+                <NeonCombobox
                   label="Game"
-                  value={selectedGame?.name ?? ""}
+                  placeholder="Oyun seçin..."
+                  searchPlaceholder="Oyun adı ara..."
+                  emptyMessage="Bu oyun bulunamadı."
                   options={platformGames.map(g => g.name)}
+                  value={selectedGame?.name ?? ""}
                   onChange={(v) => {
                     const g = platformGames.find(pg => pg.name === v);
                     if (g) { setSelectedGameId(g.id); setSelectedMap(""); }
                   }}
                 />
-                <Selector
+                <NeonCombobox
                   label="Map"
-                  value={selectedMap}
+                  placeholder="Harita seçin..."
+                  searchPlaceholder="Harita ara..."
+                  emptyMessage="Harita bulunamadı."
                   options={maps}
+                  value={selectedMap}
                   onChange={setSelectedMap}
                 />
               </div>
@@ -605,74 +627,30 @@ function GamePick({ onDone, onBack }: { onDone: (g: GameSelection) => void; onBa
   );
 }
 
-/* ---------- 4. Benchmark — Desktop Simulation App Pending ---------- */
+/* ---------- 4. Benchmark — Analyzing Screen ---------- */
 
 /**
- * BenchmarkPending bileşeni — Desktop Simulation App bekleme ekranı.
+ * BenchmarkAnalyzing bileşeni — Dinamik "Analyzing..." bekleme ekranı.
  *
- * Eski versiyon: Tarayıcıda sahte bir benchmark simülasyonu çalıştırıp
- * mock FPS/sıcaklık/RPM değerleri üretiyordu. Bu KURAL 8 ihlaliydi
- * (simülasyon tarayıcıda çalışmaz).
+ * Görev 1.1: In-browser sahte benchmark kaldırıldı (KURAL 8 uyumu).
+ * Görev 1.3: Tam özellikli Analyzing ekranı eklendi:
+ *   - Animasyonlu ilerleme çubuğu ve aşama göstergeleri
+ *   - WebSocket/Polling ile Backend'den durum güncellemesi
+ *   - Terminal-tarzı event log
+ *   - Geçen süre ve tahmini kalan süre
+ *   - beforeunload sayfa kapanma koruması
+ *   - Hata ve timeout yönetimi
  *
- * Şu an: Desktop Simulation App'in indirilmesi gerektiğini bildirir.
- * Görev 1.3'te "Analyzing..." bekleme ekranı (WebSocket ile) geliştirilecek.
- * Phase 4'te gerçek Simulation App entegrasyonu yapılacak.
+ * Phase 4'te Simulation App tamamlandığında, bu ekran gerçek zamanlı
+ * benchmark ilerlemesini otomatik olarak gösterecektir.
  */
-function BenchmarkPending({
+function BenchmarkAnalyzing({
   spec, game, onDone,
 }: { spec: SystemSpec; game: GameSelection; onDone: (r: BenchmarkResults) => void }) {
   return (
     <div className="min-h-screen">
       <Header />
-      <div className="mx-auto max-w-5xl px-6 py-12">
-        <StepLabel n={4} title="Virtual Environment" />
-        <p className="mb-6 font-mono text-sm text-muted-foreground">
-          &gt; hedef: <span className="text-primary">{game.game.name}</span> // map: <span className="text-primary">{game.map}</span> // engine: <span className="text-primary">{game.game.engine}</span>
-        </p>
-
-        <Panel>
-          <div className="text-center py-12">
-            <div className="font-mono text-xs uppercase tracking-widest text-primary/70 mb-4">
-              // desktop simulation app required
-            </div>
-            <div className="font-[Orbitron] text-2xl font-bold text-primary neon-text mb-6">
-              SeeFps Simulation App
-            </div>
-            <div className="max-w-lg mx-auto space-y-4 font-mono text-sm text-muted-foreground">
-              <p>
-                &gt; Benchmark simülasyonu tarayıcıda <span className="text-destructive">çalışmaz</span>.
-              </p>
-              <p>
-                &gt; <span className="text-primary">SeeFps Simulation App</span>'i indirerek bilgisayarınızda
-                sanal benchmark koşturabilirsiniz. Sonuçlar otomatik olarak bu sayfaya gönderilecektir.
-              </p>
-            </div>
-
-            {/* Seçilen donanım özeti */}
-            <div className="mt-8 max-w-md mx-auto">
-              <Panel>
-                <div className="font-mono text-xs uppercase tracking-widest text-primary/70 mb-3">selected config</div>
-                <div className="grid gap-1 font-mono text-xs text-left">
-                  <div><span className="text-muted-foreground">CPU:</span> <span className="text-primary">{spec.cpu}</span></div>
-                  <div><span className="text-muted-foreground">GPU:</span> <span className="text-primary">{spec.gpu}</span></div>
-                  <div><span className="text-muted-foreground">RAM:</span> <span className="text-primary">{spec.ram}</span></div>
-                  <div><span className="text-muted-foreground">SSD:</span> <span className="text-primary">{spec.ssd}</span></div>
-                  <div><span className="text-muted-foreground">RES:</span> <span className="text-primary">{spec.resolution}</span></div>
-                </div>
-              </Panel>
-            </div>
-
-            <div className="mt-8 flex flex-col items-center gap-4">
-              <NeonButton disabled>
-                ↓ Simulation App İndir (Yakında)
-              </NeonButton>
-              <div className="font-mono text-xs text-muted-foreground">
-                Phase 4 tamamlandığında aktif olacaktır. Görev 1.3'te "Analyzing..." ekranı eklenecek.
-              </div>
-            </div>
-          </div>
-        </Panel>
-      </div>
+      <AnalyzingScreen spec={spec} game={game} onDone={onDone} />
     </div>
   );
 }
