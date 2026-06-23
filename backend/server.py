@@ -22,8 +22,9 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from routers import hardware, games, detection
+from routers import hardware, games, detection, simulation
 from services.data_service import load_dataset
+from services.ml_service import preload_model
 
 # .env dosyasını yükle (varsa)
 load_dotenv()
@@ -40,7 +41,8 @@ async def lifespan(app: FastAPI):
     # Startup
     print("🚀 SeeFps Backend başlatılıyor...")
     load_dataset()
-    print("✅ Dataset yüklendi, API hazır!")
+    preload_model()
+    print("✅ Dataset + ML modeli yüklendi, API hazır!")
     print("📖 Swagger UI: http://localhost:8000/docs")
     yield
     # Shutdown
@@ -82,6 +84,7 @@ app.add_middleware(
 app.include_router(hardware.router)
 app.include_router(games.router)
 app.include_router(detection.router)
+app.include_router(simulation.router)
 
 
 # ─── Health Check ───
