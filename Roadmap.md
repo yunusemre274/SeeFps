@@ -186,15 +186,15 @@ Bağımlılık: Phase 1'in tamamlanmış olması tercih edilir ancak
 > karşılayacak, doğrulayacak ve kullanıcının session'ına bağlayacak POST
 > endpoint'ini yaz.
 
-- [ ] `POST /api/detect` endpoint'i oluştur
-- [ ] Pydantic request modeli tanımla (`DetectionPayload`)
-- [ ] Gelen donanım ID'lerini dataset'teki kayıtlarla eşleştirme (matching) mantığı
-- [ ] Eşleşme bulunamazsa anlamlı hata dönüşü (hangi bileşen bulunamadı)
-- [ ] Session veya token tabanlı kullanıcı tanıma yapısı (opsiyonel)
-- [ ] Input validation ve sanitization
-- [ ] Endpoint'i Postman / curl ile test et
+- [x] `POST /api/detect` endpoint'i oluştur → `routers/detection.py` ✅
+- [x] Pydantic request modeli tanımla (`DetectionPayload` + `DetectionResponse` + `DetectionMatchDetail`)
+- [x] Gelen donanım ID'lerini dataset'teki kayıtlarla eşleştirme (fuzzy matching: tam, kısmi, ters) mantığı
+- [x] Eşleşme bulunamazsa anlamlı hata dönüşü (hangi bileşen + mevcut seçenekler listesi)
+- [x] Session tabanlı kullanıcı tanıma yapısı (`uuid4` session_id + GET /api/detect/session/{id})
+- [x] Input validation ve sanitization (strip, boş kontrol, Pydantic validation)
+- [x] Endpoint'i curl ile 5 test senaryosuyla doğrula ✅
 
-**🛑 DURMA NOKTASI — Kullanıcıya rapor ver ve onay bekle.**
+**✅ TAMAMLANDI — 2026-06-23**
 
 ---
 

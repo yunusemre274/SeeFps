@@ -328,3 +328,98 @@ def _guess_engine(game_name_cleaned: str) -> str:
     }
     key = game_name_cleaned.lower().replace(" ", "")
     return engine_map.get(key, "Unknown")
+
+
+# ─── Detection App: Donanım Eşleştirme (Görev 2.2) ───
+
+def match_hardware_to_dataset(
+    cpu_name: str,
+    gpu_name: str,
+) -> dict:
+    """
+    Detection App'ten gelen CPU/GPU isimlerini dataset'teki kayıtlarla eşleştirir.
+
+    Eşleştirme stratejisi (Fuzzy Matching):
+      1. Tam eşleşme (case-insensitive)
+      2. Kısmi eşleşme (contains, case-insensitive)
+
+    Returns:
+        {
+            "matched": True/False,
+            "cpu_raw": "b'Intel Core i9-9900K'" | None,
+            "gpu_raw": "b'nvidia geforce rtx 2080 ti'" | None,
+            "cpu_display": "Intel Core i9-9900K" | None,
+            "gpu_display": "NVIDIA GeForce RTX 2080 Ti" | None,
+            "errors": ["CPU 'xyz' dataset'te bulunamadı"] | []
+        }
+    """
+    df = _cache.get_df()
+    errors: list[str] = []
+
+    # ─── CPU eşleştirme ───
+    cpu_raw_match = _find_best_match(
+        df["cpuname"].dropna().unique().tolist(),
+        cpu_name,
+    )
+    cpu_display = _format_cpu_name(cpu_raw_match) if cpu_raw_match else None
+    if not cpu_raw_match:
+        errors.append(f"CPU '{cpu_name}' dataset'te bulunamadı")
+
+    # ─── GPU eşleştirme ───
+    gpu_raw_match = _find_best_match(
+        df["gpuname"].dropna().unique().tolist(),
+        gpu_name,
+    )
+    gpu_display = _format_gpu_name(gpu_raw_match) if gpu_raw_match else None
+    if not gpu_raw_match:
+        errors.append(f"GPU '{gpu_name}' dataset'te bulunamadı")
+
+    return {
+        "matched": len(errors) == 0,
+        "cpu_raw": cpu_raw_match,
+        "gpu_raw": gpu_raw_match,
+        "cpu_display": cpu_display,
+        "gpu_display": gpu_display,
+        "errors": errors,
+    }
+
+
+def _find_best_match(raw_values: list[str], query: str) -> str | None:
+    """
+    Bir sorgu dizesini ham dataset değerleri arasında eşleştirir.
+
+    Strateji:
+      1. Tam eşleşme (temizlenmiş, case-insensitive)
+      2. Sorgu, temizlenmiş değerin içinde geçiyorsa (contains)
+      3. Temizlenmiş değer, sorgunun içinde geçiyorsa (reverse contains)
+    """
+    query_lower = query.lower().strip()
+
+    # 1. Tam eşleşme
+    for raw in raw_values:
+        cleaned = _clean_value(raw).lower()
+        if cleaned == query_lower:
+            return raw
+
+    # 2. Sorgu temizlenmiş değerin içinde geçiyor mu?
+    for raw in raw_values:
+        cleaned = _clean_value(raw).lower()
+        if query_lower in cleaned:
+            return raw
+
+    # 3. Temizlenmiş değer sorgunun içinde geçiyor mu?
+    for raw in raw_values:
+        cleaned = _clean_value(raw).lower()
+        if cleaned in query_lower:
+            return raw
+
+    return None
+
+
+def get_available_hardware_names() -> dict[str, list[str]]:
+    """Dataset'teki mevcut CPU ve GPU isimlerini döndür (hata mesajlarında kullanılır)."""
+    return {
+        "cpus": [item["name"] for item in get_cpu_list()],
+        "gpus": [item["name"] for item in get_gpu_list()],
+    }
+
