@@ -1,0 +1,69 @@
+# ============================================================
+# SeeFps — .gitignore
+# ============================================================
+
+# ─── Environment Variables (GİZLİ — asla commit'lenmeyin) ───
+.env
+.env.local
+.env.development
+.env.production
+.env.staging
+.env.*.local
+backend/.env
+
+# .env.example dosyası GÜVENLİDİR — şablon olarak commit'lenebilir
+!.env.example
+!backend/.env.example
+
+# ─── Python ───
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+.venv/
+venv/
+env/
+.Python
+
+# ─── Node.js ───
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnp
+.pnp.js
+
+# ─── Build Outputs ───
+dist/
+.output/
+.vinxi/
+.tanstack/
+
+# ─── IDE & Editor ───
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ─── ML Model & Dataset (büyük dosyalar — gerekirse LFS kullanın) ───
+# TrainedData/seefps_model.joblib
+# TrainedData/*.csv
+
+# ─── Logs ───
+*.log
+logs/
+
+# ─── OS ───
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db

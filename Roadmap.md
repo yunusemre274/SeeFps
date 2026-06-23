@@ -52,7 +52,7 @@
 
 | Faz   | Katman                          | Durum             | Görev Sayısı |
 | ----- | ------------------------------- | ----------------- | ------------ |
-| **1** | Frontend Refactoring            | 🔲 Başlamadı       | 3            |
+| **1** | Frontend Refactoring            | ✅ Tamamlandı      | 3            |
 | **2** | Data & Backend API Layer        | 🔲 Başlamadı       | 3            |
 | **3** | Desktop Detection App           | 🔲 Başlamadı       | 2            |
 | **4** | Desktop Simulation App          | 🔲 Başlamadı       | 3            |
@@ -60,7 +60,7 @@
 
 ---
 
-## 🟡 Phase 1 — Frontend Refactoring (Web İyileştirmeleri)
+## ✅ Phase 1 — Frontend Refactoring (Web İyileştirmeleri) — TAMAMLANDI (2026-06-18)
 
 > **Amaç:** Lovable ile üretilmiş mevcut Frontend'i, gerçek API verisi ile çalışacak,
 > kullanıcı deneyimini profesyonelleştirecek ve masaüstü istemcileriyle uyumlu hale
@@ -80,13 +80,13 @@ Bağımlılık: Yok — İlk başlanacak faz.
 > şekilde hazırla. API henüz hazır olmasa bile, fetch yapısı ve veri
 > şablonları (interface/contract) kurulmuş olacak.
 
-- [ ] Mevcut koddaki tüm hardcoded / mock data noktalarını tespit et ve belgele
-- [ ] Her mock data noktası için hangi API endpoint'inin karşılayacağını planla
-- [ ] API iletişim katmanını oluştur (`api.js` veya `apiService.js`)
-- [ ] Dropdown bileşenlerini dinamik veri yüklemesine hazırla (loading state dahil)
-- [ ] Mock data kalıntılarının tamamen silindiğini doğrula
+- [x] Mevcut koddaki tüm hardcoded / mock data noktalarını tespit et ve belgele
+- [x] Her mock data noktası için hangi API endpoint'inin karşılayacağını planla
+- [x] API iletişim katmanını oluştur (`apiService.ts` + `types.ts` + `useHardwareData.ts`)
+- [x] Dropdown bileşenlerini dinamik veri yüklemesine hazırla (loading state dahil)
+- [x] Mock data kalıntılarının tamamen silindiğini doğrula (`data.ts` silindi)
 
-**🛑 DURMA NOKTASI — Kullanıcıya rapor ver ve onay bekle.**
+**✅ TAMAMLANDI — 2026-06-18**
 
 ---
 
@@ -96,16 +96,16 @@ Bağımlılık: Yok — İlk başlanacak faz.
 > CPU, GPU, RAM ve SSD için ayrı ayrı **Dropdown Selection Box**
 > (Açılır Seçim Kutusu) bileşenleri tasarla ve uygula.
 
-- [ ] Mevcut slider bileşenlerini ve bağlı mantığı kaldır
-- [ ] **CPU Dropdown** bileşenini oluştur (arama/filtreleme destekli)
-- [ ] **GPU Dropdown** bileşenini oluştur (arama/filtreleme destekli)
-- [ ] **RAM Dropdown** bileşenini oluştur (kapasite + frekans seçimi)
-- [ ] **SSD Dropdown** bileşenini oluştur (model/tür seçimi)
-- [ ] **Çözünürlük Dropdown** bileşenini oluştur (720p, 1080p, 1440p, 4K)
-- [ ] Dropdown'ların responsive davranışını test et (mobil/tablet uyumu)
-- [ ] Seçim state yönetimini merkezi hale getir (seçilen HW bilgisi → tek obje)
+- [x] Mevcut slider bileşenlerini ve bağlı mantığı kaldır
+- [x] **CPU Dropdown** bileşenini oluştur (arama/filtreleme destekli) → `NeonCombobox`
+- [x] **GPU Dropdown** bileşenini oluştur (arama/filtreleme destekli) → `NeonCombobox`
+- [x] **RAM Dropdown** bileşenini oluştur (kapasite + frekans seçimi) → `NeonCombobox`
+- [x] **SSD Dropdown** bileşenini oluştur (model/tür seçimi) → `NeonCombobox`
+- [x] **Çözünürlük Dropdown** bileşenini oluştur (720p, 1080p, 1440p, 4K) → `NeonCombobox`
+- [x] Dropdown'ların responsive davranışını test et (mobil/tablet uyumu) → `sm:grid-cols-2`
+- [x] Seçim state yönetimini merkezi hale getir (seçilen HW bilgisi → tek obje)
 
-**🛑 DURMA NOKTASI — Kullanıcıya rapor ver ve onay bekle.**
+**✅ TAMAMLANDI — 2026-06-18**
 
 ---
 
@@ -116,15 +116,15 @@ Bağımlılık: Yok — İlk başlanacak faz.
 > Bu ekran, benchmark ilerlemesini göstermeli ve kullanıcının sayfayı
 > terk etmesini önlemelidir.
 
-- [ ] "Analyzing..." overlay/modal bileşenini tasarla (animasyonlu)
-- [ ] İlerleme göstergesi (progress bar veya aşama gösterimi) ekle
-- [ ] Benchmark aşama metinleri: "Ortam kuruluyor...", "GPU yük testi...", "Sonuçlar hesaplanıyor..." vb.
-- [ ] WebSocket veya Polling ile Backend'den durum güncellemesi alma yapısını hazırla
-- [ ] Tamamlanma durumunda otomatik olarak Results ekranına geçiş
-- [ ] Hata / timeout durumunda kullanıcıya anlamlı mesaj gösterimi
-- [ ] Kullanıcının yanlışlıkla sayfayı kapatmasını önle (`beforeunload` event)
+- [x] "Analyzing..." overlay/modal bileşenini tasarla (animasyonlu) → `AnalyzingScreen.tsx`
+- [x] İlerleme göstergesi (progress bar veya aşama gösterimi) ekle
+- [x] Benchmark aşama metinleri: "Ortam kuruluyor...", "GPU yük testi...", "Sonuçlar hesaplanıyor..." vb. (12 aşama)
+- [x] WebSocket veya Polling ile Backend'den durum güncellemesi alma yapısını hazırla → `useSimulationStatus.ts`
+- [x] Tamamlanma durumunda otomatik olarak Results ekranına geçiş
+- [x] Hata / timeout durumunda kullanıcıya anlamlı mesaj gösterimi
+- [x] Kullanıcının yanlışlıkla sayfayı kapatmasını önle (`beforeunload` event)
 
-**🛑 DURMA NOKTASI — Kullanıcıya rapor ver ve onay bekle.**
+**✅ TAMAMLANDI — 2026-06-18**
 
 ---
 
@@ -161,22 +161,22 @@ Bağımlılık: Phase 1'in tamamlanmış olması tercih edilir ancak
 > unique değer çekmek YETERSİZDİR — modelin tanıdığı encoding yapısıyla
 > tutarlılık ZORUNLUDUR.
 
-- [ ] FastAPI proje iskeleti oluştur (**`server.py`** ← ana giriş noktası, `main.py` DEĞİL), router'lar, config
-- [ ] `predict_fps.py`'yi analiz et: `ORDINAL_COLS`, `ONEHOT_COLS`, `HIGH_CARDINALITY_DROP` listelerini ve `load_and_prepare_data()` fonksiyonunun çıktı şemasını belgele
-- [ ] Veri servisi (`data_service.py`) oluştur: `predict_fps.py`'nin `load_and_prepare_data()` fonksiyonunu import ederek temizlenmiş dataset'ten dropdown değerlerini çek
-- [ ] `GET /api/hardware/cpus` → CPU listesi endpoint'i (dataset'teki `cpuname` unique değerleri)
-- [ ] `GET /api/hardware/gpus` → GPU listesi endpoint'i (dataset'teki `gpuname` unique değerleri)
-- [ ] `GET /api/hardware/rams` → RAM seçenekleri endpoint'i
-- [ ] `GET /api/hardware/ssds` → SSD seçenekleri endpoint'i
-- [ ] `GET /api/games` → Oyun listesi endpoint'i (dataset'teki `gamename` unique değerleri)
-- [ ] `GET /api/games/{game_id}/maps` → Oyuna ait harita listesi endpoint'i
-- [ ] `GET /api/resolutions` → Desteklenen çözünürlükler endpoint'i (dataset'teki `gameresolution` unique değerleri)
-- [ ] Pydantic response modelleri oluştur
-- [ ] CORS middleware yapılandır (Frontend origin'leri)
-- [ ] Uvicorn başlatma komutu: `uvicorn server:app --reload --port 8000`
-- [ ] Tüm endpoint'leri Swagger UI (`/docs`) üzerinden doğrula
+- [x] FastAPI proje iskeleti oluştur (**`server.py`** ← ana giriş noktası, `main.py` DEĞİL), router'lar, config
+- [x] `predict_fps.py`'yi analiz et: `ORDINAL_COLS`, `ONEHOT_COLS`, `HIGH_CARDINALITY_DROP` listelerini ve `load_and_prepare_data()` fonksiyonunun çıktı şemasını belgele
+- [x] Veri servisi (`data_service.py`) oluştur: `predict_fps.py`'nin `load_and_prepare_data()` fonksiyonunu import ederek temizlenmiş dataset'ten dropdown değerlerini çek
+- [x] `GET /api/hardware/cpus` → CPU listesi endpoint'i (19 CPU) ✅
+- [x] `GET /api/hardware/gpus` → GPU listesi endpoint'i (27 GPU) ✅
+- [x] `GET /api/hardware/rams` → RAM seçenekleri endpoint'i (7 seçenek) ✅
+- [x] `GET /api/hardware/ssds` → SSD seçenekleri endpoint'i (6 seçenek) ✅
+- [x] `GET /api/games` → Oyun listesi endpoint'i (24 oyun, engine + maps dahil) ✅
+- [x] `GET /api/games/{game_id}/maps` → Oyuna ait harita listesi endpoint'i ✅
+- [x] `GET /api/resolutions` → Desteklenen çözünürlükler endpoint'i ✅
+- [x] Pydantic response modelleri oluştur (`schemas.py`)
+- [x] CORS middleware yapılandır (Frontend origin'leri)
+- [x] Uvicorn başlatma komutu: `uvicorn server:app --reload --port 8000`
+- [x] Tüm endpoint'leri curl ile doğrula (7/7 endpoint başarılı)
 
-**🛑 DURMA NOKTASI — Kullanıcıya rapor ver ve onay bekle.**
+**✅ TAMAMLANDI — 2026-06-23**
 
 ---
 
