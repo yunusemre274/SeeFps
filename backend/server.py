@@ -22,7 +22,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from routers import hardware, games
+from routers import hardware, games, detection
 from services.data_service import load_dataset
 
 # .env dosyasını yükle (varsa)
@@ -81,6 +81,7 @@ app.add_middleware(
 
 app.include_router(hardware.router)
 app.include_router(games.router)
+app.include_router(detection.router)
 
 
 # ─── Health Check ───

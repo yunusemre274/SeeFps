@@ -69,13 +69,40 @@ class ApiResponse(BaseModel, Generic[T]):
 class DetectionPayload(BaseModel):
     """
     Detection App'ten gelecek donanım bilgisi.
-    Görev 2.2'de kullanılacak — şimdilik tanımlanıyor.
+
+    Detection App kullanıcının makinesindeki CPU/GPU bilgisini tarayarak
+    bu payload'ı POST /api/detect endpoint'ine gönderir.
     """
     cpu_name: str
     gpu_name: str
     ram_gb: float | None = None
     ssd_type: str | None = None
     resolution: str | None = None
+
+
+class DetectionMatchDetail(BaseModel):
+    """Eşleşme detayı — bir donanım bileşeninin eşleşme sonucu."""
+    matched: bool
+    raw_value: str | None = None
+    display_name: str | None = None
+
+
+class DetectionResponse(BaseModel):
+    """
+    POST /api/detect response'u.
+
+    Detection App'ten gelen donanım bilgilerinin dataset ile eşleşme sonucunu
+    ve oluşturulan session bilgisini döndürür.
+    """
+    success: bool
+    session_id: str | None = None
+    cpu: DetectionMatchDetail
+    gpu: DetectionMatchDetail
+    ram: str | None = None
+    ssd: str | None = None
+    resolution: str | None = None
+    errors: list[str] = []
+    available_hardware: dict[str, list[str]] | None = None
 
 
 # ─── Prediction Request (Görev 2.3 için hazırlık) ───
