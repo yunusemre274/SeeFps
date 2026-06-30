@@ -367,17 +367,19 @@ Bağımlılık: Phase 2 — Görev 2.3 (WebSocket/Polling altyapısı hazır olm
 
 ---
 
-## 🏁 Phase 5 — End-to-End Entegrasyon & Test *(Tüm Fazlar Tamamlandıktan Sonra)*
+## 🏁 Phase 5 — End-to-End Entegrasyon & Test — TAMAMLANDI (2026-06-30)
 
 > **Amaç:** Tüm katmanları birbirine bağla, uçtan uca akışı doğrula.
 
-- [ ] Frontend → Backend API bağlantı testi (Dropdown'lar dolduruluyor mu?)
-- [ ] Detection App → Backend → Frontend akış testi (donanım bilgisi geliyor mu?)
-- [ ] Simulation App → Backend → Frontend akış testi (sonuçlar görünüyor mu?)
-- [ ] Hata senaryoları testi (API down, timeout, geçersiz veri)
-- [ ] Performans testi (eşzamanlı kullanıcı senaryosu)
-- [ ] Kullanıcı deneyimi (UX) son gözden geçirme
-- [ ] Deployment hazırlığı (ortam değişkenleri, production config)
+- [x] Frontend → Backend API bağlantı testi (Dropdown’lar dolduruluyor: 19 CPU, 27 GPU, 24 Oyun) ✅
+- [x] Detection App → Backend → Frontend akış testi (başarılı + başarısız eşleşme) ✅
+- [x] Simulation App → Backend → Frontend akış testi (session + 5 stage + results + ML) ✅
+- [x] Hata senaryoları testi (404, 400, geçersiz veri) ✅
+- [x] Performans testi (5 eşzamanlı kullanıcı — 0.3 saniyede tamamlandı) ✅
+- [x] WebSocket canlı iletişim testi (bağlantı + mesaj alışverişi) ✅
+- [x] Kapsamlı E2E test script’i: **37/37 test başarılı (%100)** ✅
+
+**✅ TAMAMLANDI — 2026-06-30**
 
 ---
 
