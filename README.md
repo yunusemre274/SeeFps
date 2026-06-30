@@ -124,7 +124,7 @@ FastAPI sunucusu, tüm sistemin merkezidir.
 cd backend
 
 # Sanal ortam (Virtual Environment) oluşturun
-python3 -m venv venv
+python -m venv venv
 
 # Sanal ortamı aktifleştirin
 # macOS / Linux için:
@@ -154,10 +154,10 @@ cd desktop/detection-app
 pip install -r requirements.txt
 
 # Önce API'ye veri GÖNDERMEDEN sadece tarama testi yapın (Dry Run)
-python3 main.py --dry-run
+python main.py --dry-run
 
 # Backend'e bağlanarak gerçek tarama ve eşleştirme yapın
-python3 main.py
+python main.py
 ```
 ✅ **Başarılı:** Terminalde donanımlarınızın bulunduğunu ve Backend API'ye (http://localhost:8000) başarıyla gönderildiğini (200 OK) görmelisiniz.
 
