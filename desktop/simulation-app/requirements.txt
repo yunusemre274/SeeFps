@@ -1,0 +1,9 @@
+# SeeFps — Simulation App Dependencies
+# ======================================
+# Sanal benchmark simülasyonu için gerekli kütüphaneler.
+
+# HTTP istekleri (Backend API ile iletişim)
+requests>=2.31.0
+
+# Güzel terminal çıktısı
+rich>=13.7.0
