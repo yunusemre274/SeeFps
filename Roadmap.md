@@ -61,6 +61,7 @@
 ---
 
 ## ✅ Phase 1 — Frontend Refactoring (Web İyileştirmeleri) — TAMAMLANDI (2026-06-18)
+## ✅ Phase 1 — Frontend Refactoring (Web İyileştirmeleri) — TAMAMLANDI (2026-06-18)
 
 > **Amaç:** Lovable ile üretilmiş mevcut Frontend'i, gerçek API verisi ile çalışacak,
 > kullanıcı deneyimini profesyonelleştirecek ve masaüstü istemcileriyle uyumlu hale
@@ -85,7 +86,13 @@ Bağımlılık: Yok — İlk başlanacak faz.
 - [x] API iletişim katmanını oluştur (`apiService.ts` + `types.ts` + `useHardwareData.ts`)
 - [x] Dropdown bileşenlerini dinamik veri yüklemesine hazırla (loading state dahil)
 - [x] Mock data kalıntılarının tamamen silindiğini doğrula (`data.ts` silindi)
+- [x] Mevcut koddaki tüm hardcoded / mock data noktalarını tespit et ve belgele
+- [x] Her mock data noktası için hangi API endpoint'inin karşılayacağını planla
+- [x] API iletişim katmanını oluştur (`apiService.ts` + `types.ts` + `useHardwareData.ts`)
+- [x] Dropdown bileşenlerini dinamik veri yüklemesine hazırla (loading state dahil)
+- [x] Mock data kalıntılarının tamamen silindiğini doğrula (`data.ts` silindi)
 
+**✅ TAMAMLANDI — 2026-06-18**
 **✅ TAMAMLANDI — 2026-06-18**
 
 ---
@@ -104,7 +111,16 @@ Bağımlılık: Yok — İlk başlanacak faz.
 - [x] **Çözünürlük Dropdown** bileşenini oluştur (720p, 1080p, 1440p, 4K) → `NeonCombobox`
 - [x] Dropdown'ların responsive davranışını test et (mobil/tablet uyumu) → `sm:grid-cols-2`
 - [x] Seçim state yönetimini merkezi hale getir (seçilen HW bilgisi → tek obje)
+- [x] Mevcut slider bileşenlerini ve bağlı mantığı kaldır
+- [x] **CPU Dropdown** bileşenini oluştur (arama/filtreleme destekli) → `NeonCombobox`
+- [x] **GPU Dropdown** bileşenini oluştur (arama/filtreleme destekli) → `NeonCombobox`
+- [x] **RAM Dropdown** bileşenini oluştur (kapasite + frekans seçimi) → `NeonCombobox`
+- [x] **SSD Dropdown** bileşenini oluştur (model/tür seçimi) → `NeonCombobox`
+- [x] **Çözünürlük Dropdown** bileşenini oluştur (720p, 1080p, 1440p, 4K) → `NeonCombobox`
+- [x] Dropdown'ların responsive davranışını test et (mobil/tablet uyumu) → `sm:grid-cols-2`
+- [x] Seçim state yönetimini merkezi hale getir (seçilen HW bilgisi → tek obje)
 
+**✅ TAMAMLANDI — 2026-06-18**
 **✅ TAMAMLANDI — 2026-06-18**
 
 ---
@@ -123,11 +139,20 @@ Bağımlılık: Yok — İlk başlanacak faz.
 - [x] Tamamlanma durumunda otomatik olarak Results ekranına geçiş
 - [x] Hata / timeout durumunda kullanıcıya anlamlı mesaj gösterimi
 - [x] Kullanıcının yanlışlıkla sayfayı kapatmasını önle (`beforeunload` event)
+- [x] "Analyzing..." overlay/modal bileşenini tasarla (animasyonlu) → `AnalyzingScreen.tsx`
+- [x] İlerleme göstergesi (progress bar veya aşama gösterimi) ekle
+- [x] Benchmark aşama metinleri: "Ortam kuruluyor...", "GPU yük testi...", "Sonuçlar hesaplanıyor..." vb. (12 aşama)
+- [x] WebSocket veya Polling ile Backend'den durum güncellemesi alma yapısını hazırla → `useSimulationStatus.ts`
+- [x] Tamamlanma durumunda otomatik olarak Results ekranına geçiş
+- [x] Hata / timeout durumunda kullanıcıya anlamlı mesaj gösterimi
+- [x] Kullanıcının yanlışlıkla sayfayı kapatmasını önle (`beforeunload` event)
 
+**✅ TAMAMLANDI — 2026-06-18**
 **✅ TAMAMLANDI — 2026-06-18**
 
 ---
 
+## 🔵 Phase 2 — Data & Backend API Layer (Veri ve Sunucu) — TAMAMLANDI (2026-06-23)
 ## 🔵 Phase 2 — Data & Backend API Layer (Veri ve Sunucu) — TAMAMLANDI (2026-06-23)
 
 > **Amaç:** FastAPI tabanlı Backend'i kurmak; Frontend Dropdown'larını besleyecek,
@@ -175,7 +200,22 @@ Bağımlılık: Phase 1'in tamamlanmış olması tercih edilir ancak
 - [x] CORS middleware yapılandır (Frontend origin'leri)
 - [x] Uvicorn başlatma komutu: `uvicorn server:app --reload --port 8000`
 - [x] Tüm endpoint'leri curl ile doğrula (7/7 endpoint başarılı)
+- [x] FastAPI proje iskeleti oluştur (**`server.py`** ← ana giriş noktası, `main.py` DEĞİL), router'lar, config
+- [x] `predict_fps.py`'yi analiz et: `ORDINAL_COLS`, `ONEHOT_COLS`, `HIGH_CARDINALITY_DROP` listelerini ve `load_and_prepare_data()` fonksiyonunun çıktı şemasını belgele
+- [x] Veri servisi (`data_service.py`) oluştur: `predict_fps.py`'nin `load_and_prepare_data()` fonksiyonunu import ederek temizlenmiş dataset'ten dropdown değerlerini çek
+- [x] `GET /api/hardware/cpus` → CPU listesi endpoint'i (19 CPU) ✅
+- [x] `GET /api/hardware/gpus` → GPU listesi endpoint'i (27 GPU) ✅
+- [x] `GET /api/hardware/rams` → RAM seçenekleri endpoint'i (7 seçenek) ✅
+- [x] `GET /api/hardware/ssds` → SSD seçenekleri endpoint'i (6 seçenek) ✅
+- [x] `GET /api/games` → Oyun listesi endpoint'i (24 oyun, engine + maps dahil) ✅
+- [x] `GET /api/games/{game_id}/maps` → Oyuna ait harita listesi endpoint'i ✅
+- [x] `GET /api/resolutions` → Desteklenen çözünürlükler endpoint'i ✅
+- [x] Pydantic response modelleri oluştur (`schemas.py`)
+- [x] CORS middleware yapılandır (Frontend origin'leri)
+- [x] Uvicorn başlatma komutu: `uvicorn server:app --reload --port 8000`
+- [x] Tüm endpoint'leri curl ile doğrula (7/7 endpoint başarılı)
 
+**✅ TAMAMLANDI — 2026-06-23**
 **✅ TAMAMLANDI — 2026-06-23**
 
 ---
@@ -193,7 +233,15 @@ Bağımlılık: Phase 1'in tamamlanmış olması tercih edilir ancak
 - [x] Session tabanlı kullanıcı tanıma yapısı (`uuid4` session_id + GET /api/detect/session/{id})
 - [x] Input validation ve sanitization (strip, boş kontrol, Pydantic validation)
 - [x] Endpoint'i curl ile 5 test senaryosuyla doğrula ✅
+- [x] `POST /api/detect` endpoint'i oluştur → `routers/detection.py` ✅
+- [x] Pydantic request modeli tanımla (`DetectionPayload` + `DetectionResponse` + `DetectionMatchDetail`)
+- [x] Gelen donanım ID'lerini dataset'teki kayıtlarla eşleştirme (fuzzy matching: tam, kısmi, ters) mantığı
+- [x] Eşleşme bulunamazsa anlamlı hata dönüşü (hangi bileşen + mevcut seçenekler listesi)
+- [x] Session tabanlı kullanıcı tanıma yapısı (`uuid4` session_id + GET /api/detect/session/{id})
+- [x] Input validation ve sanitization (strip, boş kontrol, Pydantic validation)
+- [x] Endpoint'i curl ile 5 test senaryosuyla doğrula ✅
 
+**✅ TAMAMLANDI — 2026-06-23**
 **✅ TAMAMLANDI — 2026-06-23**
 
 ---
@@ -222,7 +270,22 @@ Bağımlılık: Phase 1'in tamamlanmış olması tercih edilir ancak
 - [x] Tamamlanan sonuçları WebSocket ile Frontend'e push ✅
 - [x] Hata ve timeout senaryoları yönetimi (fail_session, error type)
 - [x] End-to-end akışı REST + WebSocket ile test edildi (4 test senaryosu başarılı) ✅
+- [x] İletişim modelini belirle: **WebSocket** (birincil) + **Polling** (fallback) ✔️
+- [x] `POST /api/simulation/start` → Session başlatma endpoint'i ✅
+- [x] `POST /api/simulation/results` → Simulation App'ten sonuç alma + ML prediction ✅
+- [x] `POST /api/simulation/stage` → Aşama güncelleme endpoint'i ✅
+- [x] `WS /ws/simulation/{session_id}` → Frontend'e canlı durum akışı ✅
+- [x] `GET /api/simulation/status/{id}` → Polling fallback endpoint'i ✅
+- [x] `predict_fps.py`'den `tahmin_et()` ve `load_model()` fonksiyonları import edildi
+- [x] ML inference servis katmanı (`ml_service.py`): thread-safe adapter ✅
+- [x] Benchmark ilerleme durumu yönetimi (`simulation_manager.py`): 12 aşama + states ✅
+- [x] Gelen sonuç verisini doğrula ve yapılandır (FPS, sıcaklık, RPM, clock, bottleneck)
+- [x] Frontend'in "Analyzing..." ekranına uyumlu WebSocket mesaj formatı (stage_update/completed/error)
+- [x] Tamamlanan sonuçları WebSocket ile Frontend'e push ✅
+- [x] Hata ve timeout senaryoları yönetimi (fail_session, error type)
+- [x] End-to-end akışı REST + WebSocket ile test edildi (4 test senaryosu başarılı) ✅
 
+**✅ TAMAMLANDI — 2026-06-23**
 **✅ TAMAMLANDI — 2026-06-23**
 
 ---
