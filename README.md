@@ -9,372 +9,202 @@
 &nbsp;
 
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen?style=for-the-badge&logo=githubactions&logoColor=white)](#)
-[![Version](https://img.shields.io/badge/version-1.0.0--beta-blue?style=for-the-badge&logo=semanticrelease&logoColor=white)](#)
-[![License](https://img.shields.io/badge/license-MIT-orange?style=for-the-badge&logo=opensourceinitiative&logoColor=white)](#license)
-[![Python](https://img.shields.io/badge/python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)](#-architecture--tech-stack)
-[![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)](#-architecture--tech-stack)
-[![Scikit Learn](https://img.shields.io/badge/scikit--learn-F7931E?style=for-the-badge&logo=scikitlearn&logoColor=white)](#-architecture--tech-stack)
+[![Version](https://img.shields.io/badge/version-1.0.0-blue?style=for-the-badge&logo=semanticrelease&logoColor=white)](#)
+[![Python](https://img.shields.io/badge/python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)](#)
+[![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)](#)
+[![Scikit Learn](https://img.shields.io/badge/scikit--learn-F7931E?style=for-the-badge&logo=scikitlearn&logoColor=white)](#)
 
 &nbsp;
 
 <img src="https://img.shields.io/badge/Hub_%26_Spoke_Architecture-FF6F61?style=for-the-badge" alt="Hub and Spoke" />
 <img src="https://img.shields.io/badge/Zero_Mock_Data-2ECC71?style=for-the-badge" alt="Zero Mock Data" />
-<img src="https://img.shields.io/badge/Desktop_Simulation_Engine-8A2BE2?style=for-the-badge" alt="Desktop Simulation" />
+<img src="https://img.shields.io/badge/Virtual_Simulation-8A2BE2?style=for-the-badge" alt="Virtual Simulation" />
 
 </div>
 
 ---
 
-## 📖 About The Project
+## 📖 Proje Hakkında (About The Project)
 
-**SeeFps** is not your typical "will it run?" website that pulls numbers from a static database. It is a **full end-to-end platform** built on a **Hub & Spoke architecture** — combining a central web platform (Hub) with dedicated desktop clients (Spokes) for hardware detection and benchmark simulation — all powered by a high-accuracy machine learning model.
+**SeeFps**, piyasadaki geleneksel "Sistem gereksinimlerimi karşılıyor mu?" sitelerinden tamamen farklı bir vizyonla inşa edilmiş, uçtan uca (end-to-end) bir performans tahmin ve analiz platformudur. 
 
-At its core, SeeFps is driven by a **MLPRegressor neural network** trained on thousands of real benchmark data points, achieving an **R² score of 0.9997** — meaning its predictions are nearly indistinguishable from actual test results. But raw prediction is only half the story. The **Desktop Simulation App** runs a virtual benchmark engine directly on the user's machine, modeling game-specific rendering loads — particle systems, reflections, volumetric smoke, character abilities, and map complexity — to produce a **context-aware performance profile** tailored to the exact scenario you care about.
-
-Unlike traditional web-based estimators, SeeFps uses **zero mock data**. Every hardware option, every game entry, and every selection dropdown is dynamically fed from the trained ML dataset through a FastAPI backend. The **Detection App** automatically scans your local hardware, while the **Simulation App** runs the benchmark locally and streams real-time progress back to the website, where users watch a live "Analyzing..." screen before results appear.
+Temelinde, binlerce gerçek benchmark verisiyle eğitilmiş ve **0.9997 R² skoruna** sahip bir **MLPRegressor** (Çok Katmanlı Algılayıcı - Yapay Sinir Ağı) modeli yatar. Ancak SeeFps sadece statik bir tahmin sunmaz. Masaüstünüze inen **Simülasyon İstemcisi (Simulation App)** sayesinde oyun motorlarının (Unreal Engine, Source vb.) dinamik yüklerini (partikül efektleri, yansımalar, fizik motoru) bilgisayarınızda sanal olarak çalıştırarak ısınma ve darboğaz (bottleneck) durumlarını anlık olarak hesaplar.
 
 ---
 
-## ✨ Key Features
+## 🏗️ Mimari Yapı: Hub & Spoke (Merkez ve Uçlar)
 
-<table>
-<tr>
-<td width="50%" valign="top">
+Proje, modern ve ölçeklenebilir **Hub & Spoke** mimarisi üzerine kurulmuştur. Web platformu "Merkez" (Hub) olarak çalışırken, masaüstü uygulamaları bağımsız "Uçlar" (Spokes) olarak görev yapar.
 
-### 🔍 Hardware Detection App
-A lightweight desktop client that automatically scans your system — **CPU, GPU, RAM, SSD, and display resolution** — and securely sends the data to the web platform via the Backend API.
-
-### 🎛️ Smart Selection Boxes
-No sliders. No guesswork. Choose your hardware from **dedicated dropdown selection boxes** for CPU, GPU, RAM, SSD, and resolution — each populated dynamically from the trained ML dataset. Search, filter, and select with precision.
-
-### 🎮 Game & Map Selection
-Choose your target platform, game title, and specific map. Each map carries its own rendering profile — because not all arenas are created equal.
-
-</td>
-<td width="50%" valign="top">
-
-### 💻 Desktop Simulation App
-The benchmark doesn't run in your browser — it runs on **your machine**. The Simulation App downloads to your desktop, executes a virtual benchmark with game engine dynamics (smoke, abilities, reflections, particles), and uploads results back to the web platform.
-
-### ⏳ Live Analyzing State
-While the Simulation App works, the website displays a **dynamic "Analyzing..." screen** with real-time progress updates via WebSocket — stage indicators, progress bars, and status messages keep you informed every step of the way.
-
-### 📊 Comprehensive Results
-Get the full picture: **Max / Min / Avg FPS**, CPU & GPU temperatures, fan RPM estimates, clock speed projections, and **bottleneck analysis** — all in one beautiful results dashboard.
-
-</td>
-</tr>
-</table>
-
----
-
-## 🏗️ Architecture & Tech Stack
-
-SeeFps follows a **Hub & Spoke architecture** where the Web Platform serves as the central hub, and desktop clients operate as independent spokes communicating through the Backend API.
-
-```
+```text
                     ┌──────────────────────────────────────┐
                     │        🌐 WEB PLATFORM (HUB)         │
                     │                                      │
                     │   ┌──────────────────────────────┐   │
-                    │   │        FRONTEND (UI)          │   │
-                    │   │   Selection Boxes (Dropdowns) │   │
-                    │   │   Analyzing State Screen      │   │
-                    │   │   Results Dashboard           │   │
+                    │   │        FRONTEND (UI)         │   │
+                    │   │  React / TS / WebSocket UI   │   │
                     │   └─────────────┬────────────────┘   │
-                    │                 │ REST API            │
+                    │                 │ REST API + WSS     │
                     │   ┌─────────────▼────────────────┐   │
-                    │   │    BACKEND API (FastAPI)      │   │
-                    │   │   ML Service • Data Service   │   │
-                    │   │   WebSocket • Session Mgmt    │   │
+                    │   │    BACKEND API (FastAPI)     │   │
+                    │   │ 🧠 ML Service (Inference)    │   │
+                    │   │ 📊 Data Service (Dataset)    │   │
                     │   └──┬──────────────────────┬───┘   │
                     └──────┼──────────────────────┼───────┘
                            │                      │
                ┌───────────▼──────┐   ┌───────────▼──────────┐
                │  🔍 DETECTION    │   │  🎮 SIMULATION APP   │
                │     APP          │   │  (Desktop Client)    │
-               │  (Desktop)       │   │                      │
-               │                  │   │  ML Model Inference  │
-               │  Scans HW specs  │   │  Benchmark Engine    │
-               │  POST → API      │   │  POST results → API  │
                │  (Spoke 1)       │   │  (Spoke 2)           │
+               │                  │   │                      │
+               │ - psutil/GPUtil  │   │ - Virtual Benchmark  │
+               │ - Auto-scans HW  │   │ - Engine Load Tables │
+               │ - POST → API     │   │ - Stream progress    │
                └──────────────────┘   └──────────────────────┘
 ```
 
-| Layer                       | Technology                          | Purpose                                               |
-| --------------------------- | ----------------------------------- | ----------------------------------------------------- |
-| **Frontend (Web Hub)**      | HTML, CSS, JavaScript (or React)    | Selection boxes, analyzing state, results dashboard    |
-| **Backend API (Hub Core)**  | Python 3.10+, FastAPI, Uvicorn      | REST API, WebSocket, data service, session management  |
-| **ML Engine**               | Scikit-learn, Joblib, NumPy, Pandas | MLPRegressor inference pipeline                        |
-| **Detection App (Spoke 1)** | Python (psutil, GPUtil, cpuinfo)    | Local hardware auto-detection & API reporting          |
-| **Simulation App (Spoke 2)**| Python (or Electron / C#)           | Desktop benchmark simulation & result upload           |
+### 1. Web Platform (Hub Core - FastAPI)
+*   Sistemin kalbidir. Frontend'e verileri sağlar, masaüstü istemcilerinden gelen verileri işler.
+*   **Orkestrasyon & Servisler:**
+    *   **Data Service:** "Zero Mock Data" prensibiyle çalışır. Arayüzdeki işlemci, ekran kartı ve oyun listelerini statik dosyalardan değil, doğrudan Yapay Zeka'nın eğitildiği gerçek veri setini analiz ederek dinamik olarak oluşturur.
+    *   **ML Service (Thread-Safe):** Ayrı bir dosyada (`predict_fps.py`) bulunan eğitilmiş Scikit-Learn modelini (Adapter deseni ile) sisteme entegre eder. Model belleğe bir kez yüklenir (Singleton) ve yüksek performanslı tahminler (inference) yapar.
+    *   **Simulation Manager:** Masaüstü simülasyonundan gelen durum güncellemelerini alır ve **WebSocket** (WSS) üzerinden anlık olarak Frontend'e (Kullanıcının tarayıcısına) iter (push).
 
-> [!IMPORTANT]
-> **The benchmark simulation does NOT run in the browser.** It executes on the user's
-> machine via the Desktop Simulation App and reports results back through the API.
+### 2. Detection App (Spoke 1 - Donanım Tarayıcı)
+*   Python tabanlı masaüstü CLI uygulamasıdır. `psutil`, `GPUtil`, ve `py-cpuinfo` kullanarak kullanıcının bilgisayarındaki İşlemci, Ekran Kartı, RAM ve Disk özelliklerini OS seviyesinde okur.
+*   Okunan verileri Backend'e gönderir. Backend, "Fuzzy Matching" (Bulanık Eşleştirme) algoritması kullanarak bu donanımları ML veri setindeki temiz isimlerle eşleştirir.
+
+### 3. Simulation App (Spoke 2 - Sanal Benchmark)
+*   Oyun indirmeden sistemin nasıl tepki vereceğini ölçer.
+*   Oyun motoru dinamiklerini (örneğin Unreal Engine 4'teki gölge, partikül ve yansıma yüklerini) içeren mantıksal profiller kullanır.
+*   9 farklı sahneden (Texture Loading, GPU Stress, Particle FX vb.) oluşan bir sanal benchmark koşar. Heuristik yöntemlerle anlık sıcaklık ve saat hızlarını hesaplayıp Backend'e canlı raporlar.
 
 ---
 
-## 🚀 Getting Started
+## 🛠️ Kullanılan Teknolojiler (Tech Stack)
 
-### Prerequisites
+### Backend & ML Katmanı
+*   **Dil:** Python 3.10+
+*   **Framework:** FastAPI (Yüksek performanslı, asenkron REST API)
+*   **Sunucu:** Uvicorn (ASGI web sunucusu)
+*   **Makine Öğrenimi (ML):** Scikit-Learn (`MLPRegressor`), Pandas, NumPy, Joblib (Model serileştirme).
+*   **Gerçek Zamanlı İletişim:** WebSockets (Starlette tabanlı).
 
-- **Python 3.10+** installed on your system
-- **Node.js 18+** *(only if using a JS build tool for frontend)*
-- **Git**
+### Masaüstü İstemciler (Desktop Apps)
+*   **Dil:** Python 3.10+
+*   **Arayüz:** `Rich` (Gelişmiş Terminal Kullanıcı Arayüzü - TUI, paneller, yükleme barları).
+*   **Sistem Erişimi:** `psutil` (CPU/RAM/Disk), `GPUtil` (GPU), `screeninfo` (Çözünürlük).
+*   **Ağ İletişimi:** `requests` (Retry ve backoff mekanizmalı API istemcisi).
 
-### 1️⃣ Clone the Repository
+### Frontend Katmanı
+*   **Teknolojiler:** React, TypeScript, Tailwind CSS (Bileşen isimlerinden ve hook yapılarından yola çıkarak).
+*   **Öne Çıkanlar:** Custom Hook'lar (`useSimulationStatus`, `useHardwareData`), dinamik "Analyzing..." ekranları.
 
+---
+
+## 🚀 Kurulum ve Çalıştırma Rehberi (Local Development)
+
+Projeyi kendi bilgisayarınızda (lokalinizde) ayağa kaldırmak ve tam entegre E2E (Uçtan Uca) akışı test etmek için aşağıdaki adımları sırasıyla uygulayın.
+
+### Ön Koşullar (Prerequisites)
+*   Sisteminizde **Python 3.10 veya üzeri** yüklü olmalıdır.
+*   Terminal kullanımı ve temel `git` bilgisi gereklidir.
+
+### Adım 1: Repoyu Klonlayın
 ```bash
 git clone https://github.com/your-username/SeeFps.git
 cd SeeFps
 ```
 
-### 2️⃣ Backend Setup (Hub Core)
+### Adım 2: Backend (Hub) Kurulumu ve Başlatılması
+FastAPI sunucusu, tüm sistemin merkezidir.
 
 ```bash
+# Backend klasörüne geçin
 cd backend
 
-# Create and activate a virtual environment
-python -m venv venv
-source venv/bin/activate        # macOS / Linux
-# venv\Scripts\activate         # Windows
+# Sanal ortam (Virtual Environment) oluşturun
+python3 -m venv venv
 
-# Install dependencies
+# Sanal ortamı aktifleştirin
+# macOS / Linux için:
+source venv/bin/activate
+# Windows için:
+# venv\Scripts\activate
+
+# Gerekli kütüphaneleri yükleyin
+pip install -r requirements.txt
+pip install uvicorn
+
+# Sunucuyu başlatın
+python3 -m uvicorn server:app --host 0.0.0.0 --port 8000 --reload
+```
+✅ **Başarılı:** Sunucu `http://localhost:8000` adresinde çalışıyor olmalı. Tarayıcınızdan `http://localhost:8000/docs` adresine giderek Swagger UI (API Dokümantasyonu) arayüzünü görebilirsiniz.
+
+*(Bu terminali açık bırakın, sunucu arka planda çalışmaya devam etmelidir.)*
+
+### Adım 3: Detection App (Uç 1) Kurulumu ve Testi
+Yeni bir terminal penceresi açın. Bu uygulama bilgisayarınızın donanımını tarayıp Backend ile eşleştirecektir.
+
+```bash
+# Proje ana dizininden detection-app'e geçin
+cd desktop/detection-app
+
+# Gereksinimleri yükleyin
 pip install -r requirements.txt
 
-# Start the FastAPI server
-uvicorn server:app --reload --port 8000
+# Önce API'ye veri GÖNDERMEDEN sadece tarama testi yapın (Dry Run)
+python3 main.py --dry-run
+
+# Backend'e bağlanarak gerçek tarama ve eşleştirme yapın
+python3 main.py
 ```
+✅ **Başarılı:** Terminalde donanımlarınızın bulunduğunu ve Backend API'ye (http://localhost:8000) başarıyla gönderildiğini (200 OK) görmelisiniz.
 
-The API will be available at `http://localhost:8000` and interactive docs at `http://localhost:8000/docs`.
-
-> [!NOTE]
-> The FastAPI entry point is **`server.py`**, not `main.py`. The existing `TrainedData/main.py`
-> is a data cleaning script — naming it `server.py` avoids confusion.
-
-### 3️⃣ Frontend Setup
+### Adım 4: Simulation App (Uç 2) Kurulumu ve Testi
+Bu uygulama sanal bir benchmark simülasyonu koşar ve sonuçları (WebSocket tetikleyicileri ile) Backend'e iletir.
 
 ```bash
-cd frontend
+# Proje ana dizininden simulation-app'e geçin
+cd desktop/simulation-app
 
-# Vanilla HTML/CSS/JS — use a live server:
-npx serve .
-
-# If using React:
-# npm install
-# npm run dev
-```
-
-### 4️⃣ Detection App (Spoke 1)
-
-```bash
-cd detection
-
+# Gereksinimleri yükleyin
 pip install -r requirements.txt
-python detector.py
-```
 
-### 5️⃣ Simulation App (Spoke 2)
+# Hızlı (speed 0.1) bir simülasyon testi yapın
+# Not: İstediğiniz cpu, gpu ve oyunu parametre olarak verebilirsiniz.
+python3 main.py --cpu "i9-9900K" --gpu "rtx 2080 ti" --game "fortnite" --engine "Unreal Engine 4" --speed 0.1
+```
+✅ **Başarılı:** Terminalde 9 aşamalı bir simülasyonun çalıştığını, Backend'e aşamaların raporlandığını ve en sonunda ML modelinden dönen **Tahmini FPS (Predicted FPS)** değerini görmelisiniz.
+
+---
+
+## 🧪 E2E (Uçtan Uca) Entegrasyon Testleri
+
+SeeFps projesi, 7 farklı kategoride toplam **37 adet E2E Entegrasyon Testi** içerir. Bu testler Backend API'sini, ML entegrasyonunu, Donanım eşleştirmesini ve WebSocket iletişimini otomatik olarak doğrular.
+
+Testleri çalıştırmak için (Backend sunucunuzun 8000 portunda çalışıyor olduğundan emin olun):
 
 ```bash
-cd simulation
-
-pip install -r requirements.txt
-python simulator.py
+# Proje ana dizininde (SeeFps klasöründe) çalıştırın
+python3 tests/e2e_test.py
 ```
 
-> [!NOTE]
-> Both desktop apps require local execution on the user's machine. The Detection App
-> scans hardware specs, and the Simulation App runs the benchmark engine. Both
-> communicate with the web platform exclusively through the Backend API.
+**Test Kapsamı:**
+1.  **Backend Temel Sağlık:** API ayakta mı?
+2.  **Dropdown Verileri:** Zero Mock Data çalışıyor mu? (Veri setinden CPU/GPU listeleri çekilebiliyor mu?)
+3.  **Detection App Akışı:** Bilinen ve bilinmeyen donanım eşleştirme senaryoları.
+4.  **Simulation App Akışı:** Session başlatma, Aşama ilerletme, ML tahmini alma.
+5.  **Hata Senaryoları:** Yanlış endpointler, geçersiz veriler (404, 400, 422).
+6.  **Eşzamanlı Kullanıcı Performansı:** Aynı anda 5 simülasyonun (Concurrency) backend'i kitlemeden işlenmesi.
+7.  **WebSocket Canlı Testi:** Sunucu ile anlık mesaj alışverişi.
+
+*Tüm testlerin %100 başarı oranıyla (37/37) geçmesi beklenmektedir.*
 
 ---
 
-## 🧪 Running Tests
+## 🤝 Katkıda Bulunma (Contributing)
+Geliştirmelere açığız! Katkıda bulunmak isterseniz lütfen bir `Pull Request` açmadan önce ilgili issue üzerinden tartışma başlatın ve yazdığınız kodların mevcut E2E testlerinden geçtiğinden emin olun.
 
-```bash
-# Backend tests
-cd backend && pytest tests/ -v
-
-# Detection app tests
-cd detection && pytest tests/ -v
-
-# Simulation app tests
-cd simulation && pytest tests/ -v
-```
-
----
-
-## 📸 Application Flow
-
-```
-                                    ┌──────────────┐
-                                    │    Splash    │
-                                    │    Screen    │
-                                    └──────┬───────┘
-                                           │
-                           ┌───────────────▼───────────────┐
-                           │     Hardware Input             │
-                           │                               │
-                ┌──────────┴──────────┐  ┌─────────────────┴──┐
-                │  🔍 Detection App   │  │  🎛️ Selection Boxes │
-                │  (Desktop — auto)   │  │  CPU ▼  GPU ▼      │
-                │         │           │  │  RAM ▼  SSD ▼      │
-                │    POST /api/detect │  │  Resolution ▼      │
-                └──────────┬──────────┘  └─────────────────┬──┘
-                           └───────────────┬───────────────┘
-                                           │
-                                    ┌──────▼───────┐
-                                    │  Game & Map  │
-                                    │  Selection   │
-                                    └──────┬───────┘
-                                           │
-                           ┌───────────────▼───────────────┐
-                           │      Benchmark Phase          │
-                           │                               │
-                ┌──────────┴──────────┐  ┌─────────────────┴──┐
-                │ 💻 Simulation App   │  │  🌐 Website shows   │
-                │ (runs on desktop)   │  │  "Analyzing..." UI  │
-                │ Benchmark engine    │  │  Live progress via  │
-                │ executes locally    │  │  WebSocket updates   │
-                │         │           │  │         ▲            │
-                │  POST results → API─┼──┼─────────┘            │
-                └─────────────────────┘  └──────────────────────┘
-                                           │
-                                    ┌──────▼───────┐
-                                    │   Results    │
-                                    │  Dashboard   │
-                                    │  FPS • Temp  │
-                                    │  RPM • Clock │
-                                    │  Bottleneck  │
-                                    └──────┬───────┘
-                                           │
-                                    🔄 Re-test
-                                    (back to HW input)
-```
-
----
-
-## 🤖 ML Model Details
-
-| Metric                  | Value                                              |
-| ----------------------- | -------------------------------------------------- |
-| **Algorithm**           | MLPRegressor (Neural Network)                      |
-| **R² Score**            | ≈ 0.9997                                           |
-| **Engineered Features** | 14 custom features                                 |
-| **Preprocessing**       | SimpleImputer → StandardScaler / OrdinalEncoder / OneHotEncoder |
-| **Serialization**       | Joblib (pipeline + metadata)                       |
-| **Training Data**       | Thousands of real benchmark records                |
-| **Data Policy**         | **Zero mock data** — all UI selections fed from trained dataset |
-
-The model processes hardware specifications through a sophisticated **ColumnTransformer** pipeline that handles numeric scaling, ordinal encoding for GPU capabilities (DirectX, OpenCL, Vulkan support levels), and one-hot encoding for categorical features like game names and GPU architectures.
-
----
-
-## 📁 Project Structure
-
-```
-SeeFps/
-├── CLAUDE.md                   # AI agent rules & project guidelines
-├── README.md                   # ← You are here
-├── Roadmap.md                  # Development roadmap & task tracking
-├── .gitignore
-│
-├── TrainedData/                # Pre-trained ML artifacts (read-only)
-│   ├── seefps_model.joblib     # Trained MLPRegressor pipeline
-│   ├── predict_fps.py          # Production-ready inference module
-│   ├── main.ipynb              # Research & training notebook
-│   └── *.csv                   # Training datasets
-│
-├── backend/                    # 🌐 Hub Core — FastAPI REST API + WebSocket
-│   ├── server.py               # ⚠️ Entry point (NOT main.py)
-│   ├── routers/
-│   ├── services/
-│   └── tests/
-│
-├── frontend/                   # 🌐 Hub UI — Web Interface
-│   ├── index.html
-│   ├── css/
-│   ├── js/
-│   └── assets/
-│
-├── detection/                  # 🔍 Spoke 1 — Desktop Hardware Scanner
-│   ├── detector.py
-│   ├── api_client.py
-│   └── tests/
-│
-└── simulation/                 # 🎮 Spoke 2 — Desktop Benchmark Engine
-    ├── simulator.py
-    ├── ml_adapter.py
-    ├── api_client.py
-    └── tests/
-```
-
----
-
-## ⚠️ Disclaimer
-
-> **SeeFps is not a real-time 3D rendering engine or an actual game benchmark tool.**
->
-> It does not render frames, execute game binaries, or stress-test your hardware in the traditional sense. SeeFps is a **data-driven, AI-powered prediction platform** with a **desktop simulation engine** that models game engine dynamics through mathematical load factors and machine learning inference.
->
-> The Desktop Simulation App runs a **virtual benchmark** — it does not launch or interact with actual games. All performance estimates (FPS, temperatures, fan speeds, clock rates) are generated by ML models trained on real-world benchmark data, enhanced with game engine load heuristics.
->
-> Results should be treated as **informed estimates** — highly accurate, but not a replacement for running the actual game on your hardware. Think of it as a *virtual test drive* for your PC's gaming performance.
-
----
-
-## 🗺️ Roadmap
-
-- [x] ML model training & validation (R² ≈ 0.9997)
-- [x] Production-ready inference module (`predict_fps.py`)
-- [x] Frontend UI design (Lovable)
-- [ ] Frontend refactoring — mock data removal, selection boxes, analyzing state
-- [ ] Backend API (FastAPI) — REST endpoints, WebSocket, data service
-- [ ] ML model integration via API / Simulation App
-- [ ] Desktop Detection App (hardware scanning)
-- [ ] Desktop Simulation App (benchmark engine)
-- [ ] Frontend ↔ Backend integration
-- [ ] Detection App ↔ Backend integration
-- [ ] Simulation App ↔ Backend ↔ Frontend integration
-- [ ] End-to-end testing & deployment
-- [ ] Mobile-responsive UI polish
-
-See [Roadmap.md](Roadmap.md) for the detailed, phased task breakdown.
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! If you'd like to contribute:
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'feat: add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
----
-
-## 📄 License
-
-Distributed under the **MIT License**. See `LICENSE` for more information.
-
----
-
-## 📬 Contact
-
-**Project Maintainer:** Yunus Emre
-
-**Project Link:** [https://github.com/your-username/SeeFps](https://github.com/your-username/SeeFps)
-
----
-
-<div align="center">
-
-**Built with 🧠 Machine Learning and ❤️ for PC Gaming**
-
-*SeeFps — See your frames before you play.*
-
-</div>
+## 📄 Lisans
+Bu proje MIT Lisansı ile lisanslanmıştır. Daha fazla bilgi için `LICENSE` dosyasına bakabilirsiniz.
