@@ -1,0 +1,21 @@
+# SeeFps — Detection App Dependencies
+# ====================================
+# Donanım bilgisi okuma için gerekli kütüphaneler.
+
+# CPU bilgisi: model adı, çekirdek, frekans, cache
+py-cpuinfo>=9.0.0
+
+# Sistem bilgisi: RAM, disk, genel bilgiler
+psutil>=5.9.0
+
+# GPU bilgisi: model, VRAM, sıcaklık, driver
+GPUtil>=1.4.0
+
+# Ekran çözünürlüğü
+screeninfo>=0.8.1
+
+# HTTP istekleri (Backend API ile iletişim)
+requests>=2.31.0
+
+# Güzel terminal çıktısı
+rich>=13.7.0
