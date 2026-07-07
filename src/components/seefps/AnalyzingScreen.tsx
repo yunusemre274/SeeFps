@@ -5,6 +5,8 @@
  * canlı ilerleme göstergesi ve animasyonlu bekleme ekranı sunar.
  *
  * Özellikler:
+ * - Backend'e gerçek simulation session başlatma (POST /api/simulation/start)
+ * - Web-only MVP modunda ML tahmini otomatik tetikleme (POST /api/simulation/results)
  * - Animasyonlu ilerleme çubuğu (progress bar)
  * - Dönen aşama metinleri (stage labels)
  * - Neon glow efektli canlı durum gösterimi
@@ -13,16 +15,15 @@
  * - Hata ve timeout durumu yönetimi
  * - Terminal-tarzı event log
  * - Donanım konfigürasyon özeti
- *
- * Görev 1.3 — Dinamik "Analyzing..." Bekleme Ekranı
  */
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   useSimulationStatus,
   BENCHMARK_STAGES,
   type SimulationStage,
 } from "@/hooks/useSimulationStatus";
+import { startSimulation, submitSimulationResults } from "@/services/apiService";
 import type { SystemSpec, GameSelection, BenchmarkResults } from "@/types/types";
 
 // ─── Props ───
@@ -31,6 +32,17 @@ interface AnalyzingScreenProps {
   spec: SystemSpec;
   game: GameSelection;
   onDone: (results: BenchmarkResults) => void;
+}
+
+// ─── Resolution Helpers ───
+
+/** Çözünürlük string'ini float'a dönüştür (ör: "1920x1080" → 1080.0) */
+function parseResolution(res: string): number {
+  const match = res.match(/(\d+)\s*x\s*(\d+)/i);
+  if (match) return parseFloat(match[2]);
+  // Doğrudan sayı ise
+  const num = parseFloat(res);
+  return isNaN(num) ? 1080.0 : num;
 }
 
 // ─── Helpers ───
@@ -76,9 +88,54 @@ function stageIcon(stage: SimulationStage): string {
 // ─── Main Component ───
 
 export function AnalyzingScreen({ spec, game, onDone }: AnalyzingScreenProps) {
-  // Geçici session ID (Phase 2'de gerçek session yönetimi eklenecek)
-  const [sessionId] = useState(() => `sim_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`);
+  // ─── Backend session yönetimi ───
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [sessionError, setSessionError] = useState<string | null>(null);
+  const [isStarting, setIsStarting] = useState(true);
+  const hasStartedRef = useRef(false);
 
+  // Backend'de session başlat ve hemen ML tahmini tetikle (Web-only MVP)
+  const initSession = useCallback(async () => {
+    if (hasStartedRef.current) return;
+    hasStartedRef.current = true;
+
+    try {
+      // 1) Session başlat
+      const startRes = await startSimulation({
+        cpu_name: spec.cpu,
+        gpu_name: spec.gpu,
+        game_name: game.game.name,
+        resolution: parseResolution(spec.resolution),
+      });
+
+      if (!startRes.success || !startRes.session_id) {
+        throw new Error("Session başlatılamadı");
+      }
+
+      setSessionId(startRes.session_id);
+      setIsStarting(false);
+
+      // 2) Web-only MVP: Simulation App yokken doğrudan ML tahmin al
+      //    Backend'e boş sonuç gönder → ML modeli devreye girer
+      const resultsRes = await submitSimulationResults({
+        session_id: startRes.session_id,
+        fps_timeline: [],
+      });
+
+      if (resultsRes.success && resultsRes.results) {
+        onDone(resultsRes.results);
+      }
+    } catch (err) {
+      setSessionError(err instanceof Error ? err.message : "Bilinmeyen hata");
+      setIsStarting(false);
+    }
+  }, [spec, game, onDone]);
+
+  useEffect(() => {
+    initSession();
+  }, [initSession]);
+
+  // WebSocket/Polling hook (session başladıktan sonra aktif)
   const {
     currentStage,
     results,
@@ -86,16 +143,29 @@ export function AnalyzingScreen({ spec, game, onDone }: AnalyzingScreenProps) {
     connectionStatus,
     elapsedSeconds,
     estimatedRemainingSeconds,
-  } = useSimulationStatus(sessionId, true, onDone);
+  } = useSimulationStatus(sessionId, !!sessionId, onDone);
 
   // Terminal-tarzı event log
   const [logLines, setLogLines] = useState<string[]>([
-    `[sys] benchmark session initialized: ${sessionId}`,
+    `[sys] benchmark session initializing...`,
     `[sys] target: ${game.game.name} // map: ${game.map}`,
     `[sys] config: ${spec.cpu} | ${spec.gpu}`,
-    `[sys] awaiting Desktop Simulation App connection...`,
   ]);
   const logEndRef = useRef<HTMLDivElement>(null);
+
+  // Session başladığında log'a ekle
+  useEffect(() => {
+    if (sessionId) {
+      setLogLines(prev => [...prev, `[sys] session created: ${sessionId}`]);
+    }
+  }, [sessionId]);
+
+  // Session hatası log'a ekle
+  useEffect(() => {
+    if (sessionError) {
+      setLogLines(prev => [...prev, `[err] ${sessionError}`]);
+    }
+  }, [sessionError]);
 
   // Aşama değiştiğinde log'a ekle
   useEffect(() => {
@@ -114,8 +184,8 @@ export function AnalyzingScreen({ spec, game, onDone }: AnalyzingScreenProps) {
   }, [logLines]);
 
   const badge = connectionBadge(connectionStatus);
-  const isWaiting = currentStage.stage === "waiting_for_app";
-  const isError = currentStage.stage === "error" || currentStage.stage === "timeout";
+  const isWaiting = currentStage.stage === "waiting_for_app" && !sessionError;
+  const isError = currentStage.stage === "error" || currentStage.stage === "timeout" || !!sessionError;
   const isCompleted = currentStage.stage === "completed";
 
   return (
@@ -125,7 +195,7 @@ export function AnalyzingScreen({ spec, game, onDone }: AnalyzingScreenProps) {
         <div>
           <div className="font-mono text-xs uppercase tracking-widest text-primary/70 mb-1">step 04</div>
           <h2 className="font-[Orbitron] text-3xl font-bold uppercase tracking-wide text-primary neon-text sm:text-4xl">
-            {isWaiting ? "Awaiting Simulation" : isCompleted ? "Complete" : "Analyzing..."}
+            {isStarting ? "Initializing..." : isWaiting ? "Awaiting Simulation" : isCompleted ? "Complete" : "Analyzing..."}
           </h2>
         </div>
         <div className="text-right">
@@ -226,10 +296,10 @@ export function AnalyzingScreen({ spec, game, onDone }: AnalyzingScreenProps) {
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="text-center">
                     <div className="font-[Orbitron] text-xl font-bold text-primary neon-text animate-flicker">
-                      AWAITING CONNECTION
+                      {isStarting ? "INITIALIZING SESSION..." : "ANALYZING"}
                     </div>
                     <div className="mt-2 font-mono text-xs text-primary/60">
-                      Simulation App'i başlatın...
+                      ML modeli tahmin üretiyor...
                     </div>
                   </div>
                 </div>
@@ -325,7 +395,7 @@ export function AnalyzingScreen({ spec, game, onDone }: AnalyzingScreenProps) {
             </div>
           </div>
 
-          {/* Simulation App indirme bilgilendirmesi */}
+          {/* Simulation App indirme — Aktif link */}
           {isWaiting && (
             <div className="relative bg-card/80 backdrop-blur-sm border border-primary/30 p-4">
               <span className="absolute -top-px -left-px h-3 w-3 border-t-2 border-l-2 border-primary" />
@@ -335,23 +405,22 @@ export function AnalyzingScreen({ spec, game, onDone }: AnalyzingScreenProps) {
 
               <div className="font-mono text-xs uppercase tracking-widest text-primary/70 mb-2">info</div>
               <div className="space-y-2 font-mono text-xs text-muted-foreground">
-                <p>&gt; <span className="text-primary">SeeFps Simulation App</span>'i bilgisayarınıza indirip çalıştırın.</p>
-                <p>&gt; Benchmark sonuçları otomatik olarak bu sayfaya gönderilecektir.</p>
+                <p>&gt; Gelişmiş benchmark için <span className="text-primary">SeeFps Simulation App</span>'i bilgisayarınıza indirip çalıştırabilirsiniz.</p>
+                <p>&gt; Web üzerinden ML tahmini otomatik olarak üretilmektedir.</p>
               </div>
-              <button
-                disabled
-                className="mt-3 w-full px-4 py-2 font-mono text-xs uppercase tracking-widest bg-primary/10 border border-primary/30 text-primary/50 cursor-not-allowed"
+              <a
+                href="https://github.com/user/SeeFps/tree/main/desktop/simulation-app"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-3 block w-full px-4 py-2 font-mono text-xs uppercase tracking-widest bg-primary/10 border border-primary/30 text-primary text-center hover:bg-primary/20 hover:border-primary/50 transition-colors"
               >
-                ↓ Simulation App İndir (Yakında)
-              </button>
-              <div className="mt-1 font-mono text-[10px] text-muted-foreground text-center">
-                Phase 4 tamamlandığında aktif olacaktır.
-              </div>
+                ↓ Simulation App'i GitHub'dan İndir
+              </a>
             </div>
           )}
 
           {/* Hata durumu */}
-          {isError && errorMessage && (
+          {isError && (errorMessage || sessionError) && (
             <div className="relative bg-card/80 backdrop-blur-sm border border-destructive/50 p-4">
               <span className="absolute -top-px -left-px h-3 w-3 border-t-2 border-l-2 border-destructive" />
               <span className="absolute -top-px -right-px h-3 w-3 border-t-2 border-r-2 border-destructive" />
@@ -359,7 +428,7 @@ export function AnalyzingScreen({ spec, game, onDone }: AnalyzingScreenProps) {
               <span className="absolute -bottom-px -right-px h-3 w-3 border-b-2 border-r-2 border-destructive" />
 
               <div className="font-mono text-xs uppercase tracking-widest text-destructive/70 mb-2">// error</div>
-              <div className="font-mono text-xs text-destructive">{errorMessage}</div>
+              <div className="font-mono text-xs text-destructive">{errorMessage || sessionError}</div>
             </div>
           )}
 
@@ -372,3 +441,4 @@ export function AnalyzingScreen({ spec, game, onDone }: AnalyzingScreenProps) {
     </div>
   );
 }
+

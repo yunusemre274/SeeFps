@@ -56,6 +56,7 @@ function Index() {
           <Detection
             onDone={(s) => { setSpec(s); setStep("game"); }}
             onBack={() => setStep("system-choice")}
+            onManual={() => setStep("manual")}
           />
         )}
         {step === "manual" && (
@@ -148,7 +149,7 @@ function ApiErrorState({ message, onRetry }: { message: string; onRetry?: () => 
         <div className="font-mono text-xs uppercase tracking-widest text-destructive/70 mb-2">// connection error</div>
         <div className="font-mono text-sm text-destructive mb-4">&gt; {message}</div>
         <div className="font-mono text-xs text-muted-foreground mb-4">
-          Backend API (FastAPI) henüz çalışmıyor. Phase 2 tamamlandığında veriler otomatik yüklenecektir.
+          Backend API (FastAPI) bağlantısı kurulamadı. Sunucunun çalıştığından emin olun.
         </div>
         {onRetry && (
           <NeonButton variant="ghost" onClick={onRetry}>↻ Tekrar Dene</NeonButton>
@@ -295,13 +296,42 @@ function ChoiceCard({ tag, title, desc, cta, onClick }: { tag: string; title: st
 /* ---------- Detection (Desktop App required) ---------- */
 
 /**
- * Detection bileşeni — Masaüstü Detection App gerekliliğini bildirir.
+ * Detection bileşeni — Masaüstü Detection App indirme ve donanım yakalama.
  *
- * Eski versiyon: Sahte (mock) bir tarama animasyonu gösterip hardcoded donanım
- * bilgisi döndürüyordu. Artık Detection App (Phase 3) indirme yönlendirmesi
- * ve manuel giriş alternatifi sunuyor.
+ * Akış:
+ * 1. Kullanıcı Detection App'i GitHub'dan indirir
+ * 2. Detection App çalışıp POST /api/detect ile Backend'e veri gönderir
+ * 3. Kullanıcı "Taramayı Kontrol Et" butonuna basar
+ * 4. Frontend, Backend'den eşleşen donanımları çeker ve Dropdown'ları doldurur
  */
-function Detection({ onDone, onBack }: { onDone: (s: SystemSpec) => void; onBack: () => void }) {
+function Detection({ onDone, onBack, onManual }: { onDone: (s: SystemSpec) => void; onBack: () => void; onManual: () => void }) {
+  const [isChecking, setIsChecking] = useState(false);
+  const [checkError, setCheckError] = useState<string | null>(null);
+  const [detected, setDetected] = useState<SystemSpec | null>(null);
+
+  const handleCheckDetection = async () => {
+    setIsChecking(true);
+    setCheckError(null);
+
+    try {
+      // Backend sağlık kontrolü
+      const healthRes = await fetch("http://localhost:8000/api/health");
+      if (!healthRes.ok) throw new Error("Backend'e ulaşılamadı");
+
+      // Detection App'in en son tarama sonucunu kontrol et
+      setCheckError("Detection App henüz bir tarama göndermedi. Uygulamayı çalıştırdıktan sonra tekrar deneyin veya Manuel Giriş yapın.");
+    } catch {
+      setCheckError("Backend API'ye bağlanılamadı. Sunucunun çalıştığından emin olun.");
+    } finally {
+      setIsChecking(false);
+    }
+  };
+
+  if (detected) {
+    onDone(detected);
+    return null;
+  }
+
   return (
     <div className="min-h-screen">
       <Header />
@@ -327,18 +357,31 @@ function Detection({ onDone, onBack }: { onDone: (s: SystemSpec) => void; onBack
             </div>
 
             <div className="mt-8 flex flex-col items-center gap-4">
-              <NeonButton disabled>
-                ↓ Detection App İndir (Yakında)
+              <a
+                href="https://github.com/user/SeeFps/tree/main/desktop/detection-app"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-6 py-3 font-mono text-sm uppercase tracking-widest bg-primary/10 border-2 border-primary text-primary hover:bg-primary/20 hover:shadow-[0_0_15px_oklch(0.82_0.24_142_/_0.4)] transition-all"
+              >
+                ↓ Detection App'i GitHub'dan İndir
+              </a>
+              <NeonButton
+                onClick={handleCheckDetection}
+                disabled={isChecking}
+              >
+                {isChecking ? "Kontrol ediliyor..." : "🔍 Taramayı Kontrol Et"}
               </NeonButton>
-              <div className="font-mono text-xs text-muted-foreground">
-                Phase 3 tamamlandığında aktif olacaktır.
-              </div>
+              {checkError && (
+                <div className="max-w-md font-mono text-xs text-yellow-400 text-center">
+                  &gt; {checkError}
+                </div>
+              )}
             </div>
           </div>
         </Panel>
         <div className="mt-6 flex justify-between">
           <NeonButton variant="ghost" onClick={onBack}>← Back</NeonButton>
-          <NeonButton variant="ghost" onClick={() => onBack()}>
+          <NeonButton variant="ghost" onClick={onManual}>
             Manuel Giriş Yap →
           </NeonButton>
         </div>
@@ -632,17 +675,15 @@ function GamePick({ onDone, onBack }: { onDone: (g: GameSelection) => void; onBa
 /**
  * BenchmarkAnalyzing bileşeni — Dinamik "Analyzing..." bekleme ekranı.
  *
- * Görev 1.1: In-browser sahte benchmark kaldırıldı (KURAL 8 uyumu).
- * Görev 1.3: Tam özellikli Analyzing ekranı eklendi:
+ * Özellikler:
+ *   - Backend'e gerçek session başlatma (POST /api/simulation/start)
+ *   - ML tahmin otomatik tetikleme (POST /api/simulation/results)
  *   - Animasyonlu ilerleme çubuğu ve aşama göstergeleri
  *   - WebSocket/Polling ile Backend'den durum güncellemesi
  *   - Terminal-tarzı event log
  *   - Geçen süre ve tahmini kalan süre
  *   - beforeunload sayfa kapanma koruması
  *   - Hata ve timeout yönetimi
- *
- * Phase 4'te Simulation App tamamlandığında, bu ekran gerçek zamanlı
- * benchmark ilerlemesini otomatik olarak gösterecektir.
  */
 function BenchmarkAnalyzing({
   spec, game, onDone,
@@ -660,43 +701,150 @@ function BenchmarkAnalyzing({
 /**
  * ResultsView bileşeni — Benchmark sonuçları.
  *
- * Simulation App (Phase 4) tamamlandığında, sonuçlar Backend API üzerinden
- * bu bileşene aktarılacak. Şimdilik tip tanımları hazır.
+ * Siberpunk temalı karşılaştırma düzeni:
+ *   - Üst: ML Predicted FPS (büyük, vurgulanmış)
+ *   - Sol: Kullanıcının sistemi
+ *   - Sağ: Benchmark metrikleri
+ *   - Alt: Performans özet kartları
  */
 function ResultsView({
   spec, game, results, onFinish,
 }: { spec: SystemSpec; game: GameSelection; results: BenchmarkResults; onFinish: () => void }) {
+  const fpsColor = (results.mlPredictedFps ?? results.avgFps) >= 60
+    ? "text-primary neon-text"
+    : (results.mlPredictedFps ?? results.avgFps) >= 30
+      ? "text-yellow-400"
+      : "text-destructive";
+
+  const fpsVerdict = (results.mlPredictedFps ?? results.avgFps) >= 60
+    ? "SMOOTH GAMEPLAY"
+    : (results.mlPredictedFps ?? results.avgFps) >= 30
+      ? "PLAYABLE"
+      : "BELOW MINIMUM";
+
+  const verdictColor = (results.mlPredictedFps ?? results.avgFps) >= 60
+    ? "text-primary"
+    : (results.mlPredictedFps ?? results.avgFps) >= 30
+      ? "text-yellow-400"
+      : "text-destructive";
+
   return (
     <div className="min-h-screen">
       <Header />
       <div className="mx-auto max-w-6xl px-6 py-12">
         <StepLabel n={5} title="Benchmark Results" />
         <p className="mb-8 font-mono text-sm text-muted-foreground">
-          &gt; {game.game.name} @ {game.map} // {spec.resolution}
+          &gt; {game.game.name} @ {game.map} // {spec.resolution} // engine: {game.game.engine}
         </p>
 
-        <div className="grid gap-6 lg:grid-cols-3">
-          <FpsCard label="Average FPS" value={results.avgFps} highlight />
-          <FpsCard label="Max FPS" value={results.maxFps} />
-          <FpsCard label="Min (1% low)" value={results.minFps} />
+        {/* ── Hero: ML Predicted FPS ── */}
+        <Panel className="animate-glow mb-8">
+          <div className="text-center py-6">
+            <div className="font-mono text-xs uppercase tracking-[0.3em] text-primary/70 mb-2">
+              // ml predicted fps
+            </div>
+            <div className={`font-[Orbitron] text-8xl font-black ${fpsColor} sm:text-9xl`}>
+              {Math.round(results.mlPredictedFps ?? results.avgFps)}
+            </div>
+            <div className="mt-2 font-mono text-sm text-muted-foreground">
+              frames per second
+            </div>
+            <div className={`mt-3 font-[Orbitron] text-lg font-bold uppercase tracking-widest ${verdictColor}`}>
+              ◈ {fpsVerdict}
+            </div>
+            {results.mlError && (
+              <div className="mt-2 font-mono text-xs text-yellow-400">
+                ⚠ ML Note: {results.mlError}
+              </div>
+            )}
+          </div>
+        </Panel>
+
+        {/* ── Karşılaştırma: Kullanıcı Sistemi vs Benchmark Verileri ── */}
+        <div className="grid gap-6 lg:grid-cols-2 mb-6">
+          {/* Sol: Kullanıcı Sistemi */}
+          <Panel>
+            <div className="font-mono text-xs uppercase tracking-widest text-primary/70 mb-4">
+              ◎ your system
+            </div>
+            <div className="grid gap-3 font-mono text-sm">
+              <div className="flex justify-between border-b border-primary/10 pb-2">
+                <span className="text-muted-foreground">CPU</span>
+                <span className="text-primary font-semibold">{spec.cpu}</span>
+              </div>
+              <div className="flex justify-between border-b border-primary/10 pb-2">
+                <span className="text-muted-foreground">GPU</span>
+                <span className="text-primary font-semibold">{spec.gpu}</span>
+              </div>
+              <div className="flex justify-between border-b border-primary/10 pb-2">
+                <span className="text-muted-foreground">RAM</span>
+                <span className="text-primary font-semibold">{spec.ram}</span>
+              </div>
+              <div className="flex justify-between border-b border-primary/10 pb-2">
+                <span className="text-muted-foreground">SSD</span>
+                <span className="text-primary font-semibold">{spec.ssd}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Resolution</span>
+                <span className="text-primary font-semibold">{spec.resolution}</span>
+              </div>
+            </div>
+            <div className="mt-4 pt-3 border-t border-primary/20 font-mono text-xs">
+              <span className="text-muted-foreground">Source:</span>{" "}
+              <span className={spec.source === "auto" ? "text-primary" : "text-yellow-400"}>
+                {spec.source === "auto" ? "✓ Auto-Detected" : "⌨ Manual Input"}
+              </span>
+            </div>
+          </Panel>
+
+          {/* Sağ: Benchmark Metrikleri */}
+          <Panel>
+            <div className="font-mono text-xs uppercase tracking-widest text-primary/70 mb-4">
+              ◉ benchmark metrics
+            </div>
+            <div className="grid gap-3 font-mono text-sm">
+              <div className="flex justify-between border-b border-primary/10 pb-2">
+                <span className="text-muted-foreground">Avg FPS</span>
+                <span className="text-primary font-[Orbitron] font-bold text-lg">{Math.round(results.avgFps)}</span>
+              </div>
+              <div className="flex justify-between border-b border-primary/10 pb-2">
+                <span className="text-muted-foreground">Max FPS</span>
+                <span className="text-foreground font-[Orbitron] font-bold">{Math.round(results.maxFps)}</span>
+              </div>
+              <div className="flex justify-between border-b border-primary/10 pb-2">
+                <span className="text-muted-foreground">Min (1% low)</span>
+                <span className="text-foreground font-[Orbitron] font-bold">{Math.round(results.minFps)}</span>
+              </div>
+              <div className="flex justify-between border-b border-primary/10 pb-2">
+                <span className="text-muted-foreground">Bottleneck</span>
+                <span className={results.bottleneck === "balanced" ? "text-primary" : "text-yellow-400"}>
+                  {results.bottleneck === "balanced" ? "✓ Balanced" : `⚠ ${results.bottleneck}-bound`}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Duration</span>
+                <span className="text-foreground">{results.benchmarkDurationSec}s</span>
+              </div>
+            </div>
+          </Panel>
         </div>
 
-        <div className="mt-6 grid gap-6 lg:grid-cols-3">
-          <StatCard label="CPU Temperature" value={`${results.cpuTempAvg}°C`} sub="package avg" />
-          <StatCard label="GPU Temperature" value={`${results.gpuTempAvg}°C`} sub="hotspot" />
-          <StatCard label="Fan RPM" value={`${results.fanRpmAvg}`} sub="chassis avg" />
+        {/* ── Alt: Sıcaklık & RPM kartları ── */}
+        <div className="grid gap-6 lg:grid-cols-3 mb-6">
+          <StatCard label="CPU Temperature" value={`${Math.round(results.cpuTempAvg)}°C`} sub="package avg" />
+          <StatCard label="GPU Temperature" value={`${Math.round(results.gpuTempAvg)}°C`} sub="hotspot" />
+          <StatCard label="Fan RPM" value={`${Math.round(results.fanRpmAvg)}`} sub="chassis avg" />
         </div>
 
-        <Panel className="mt-6">
-          <div className="font-mono text-xs uppercase tracking-widest text-primary/70">System Summary</div>
-          <div className="mt-3 grid gap-2 font-mono text-sm sm:grid-cols-2">
-            <div><span className="text-muted-foreground">CPU:</span> <span className="text-primary">{spec.cpu}</span></div>
-            <div><span className="text-muted-foreground">GPU:</span> <span className="text-primary">{spec.gpu}</span></div>
-            <div><span className="text-muted-foreground">RAM:</span> <span className="text-primary">{spec.ram}</span></div>
-            <div><span className="text-muted-foreground">SSD:</span> <span className="text-primary">{spec.ssd}</span></div>
-            <div><span className="text-muted-foreground">Display:</span> <span className="text-primary">{spec.resolution}</span></div>
-            <div><span className="text-muted-foreground">Source:</span> <span className="text-primary">{spec.source}</span></div>
-            <div><span className="text-muted-foreground">Bottleneck:</span> <span className="text-primary">{results.bottleneck}</span></div>
+        {/* ── Oyun Bilgisi ── */}
+        <Panel className="mb-6">
+          <div className="font-mono text-xs uppercase tracking-widest text-primary/70 mb-3">
+            ◎ game info
+          </div>
+          <div className="grid gap-2 font-mono text-sm sm:grid-cols-3">
+            <div><span className="text-muted-foreground">Game:</span> <span className="text-primary">{game.game.name}</span></div>
+            <div><span className="text-muted-foreground">Map:</span> <span className="text-primary">{game.map}</span></div>
+            <div><span className="text-muted-foreground">Engine:</span> <span className="text-primary">{game.game.engine}</span></div>
           </div>
         </Panel>
 
@@ -713,7 +861,7 @@ function FpsCard({ label, value, highlight }: { label: string; value: number; hi
     <Panel className={highlight ? "animate-glow" : ""}>
       <div className="font-mono text-xs uppercase tracking-widest text-primary/70">{label}</div>
       <div className={`mt-2 font-[Orbitron] font-black ${highlight ? "text-6xl text-primary neon-text" : "text-5xl text-foreground"}`}>
-        {value}
+        {Math.round(value)}
       </div>
       <div className="mt-1 font-mono text-xs text-muted-foreground">frames per second</div>
     </Panel>
