@@ -37,7 +37,10 @@ import type {
 const STALE_TIME = 5 * 60 * 1000;
 
 /** API bağlantı hatası durumunda yeniden deneme sayısı */
-const RETRY_COUNT = 2;
+const RETRY_COUNT = 3;
+
+/** Render free-tier cold start için exponential retry delay (ms) */
+const retryDelay = (attempt: number) => Math.min(2000 * 2 ** attempt, 15000);
 
 // ─── Hardware Hooks ───
 
@@ -48,6 +51,7 @@ export function useCpus() {
     queryFn: fetchCpus,
     staleTime: STALE_TIME,
     retry: RETRY_COUNT,
+    retryDelay,
   });
 }
 
@@ -58,6 +62,7 @@ export function useGpus() {
     queryFn: fetchGpus,
     staleTime: STALE_TIME,
     retry: RETRY_COUNT,
+    retryDelay,
   });
 }
 
@@ -68,6 +73,7 @@ export function useRams() {
     queryFn: fetchRams,
     staleTime: STALE_TIME,
     retry: RETRY_COUNT,
+    retryDelay,
   });
 }
 
@@ -78,6 +84,7 @@ export function useSsds() {
     queryFn: fetchSsds,
     staleTime: STALE_TIME,
     retry: RETRY_COUNT,
+    retryDelay,
   });
 }
 
@@ -88,6 +95,7 @@ export function useResolutions() {
     queryFn: fetchResolutions,
     staleTime: STALE_TIME,
     retry: RETRY_COUNT,
+    retryDelay,
   });
 }
 
@@ -100,6 +108,7 @@ export function useGames() {
     queryFn: fetchGames,
     staleTime: STALE_TIME,
     retry: RETRY_COUNT,
+    retryDelay,
   });
 }
 
@@ -111,5 +120,6 @@ export function useGameMaps(gameId: string | null) {
     enabled: !!gameId,
     staleTime: STALE_TIME,
     retry: RETRY_COUNT,
+    retryDelay,
   });
 }

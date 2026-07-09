@@ -409,7 +409,7 @@ export function AnalyzingScreen({ spec, game, onDone }: AnalyzingScreenProps) {
                 <p>&gt; Web üzerinden ML tahmini otomatik olarak üretilmektedir.</p>
               </div>
               <a
-                href="https://github.com/user/SeeFps/tree/main/desktop/simulation-app"
+                href="https://github.com/yunusemre274/SeeFps/releases/latest"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="mt-3 block w-full px-4 py-2 font-mono text-xs uppercase tracking-widest bg-primary/10 border border-primary/30 text-primary text-center hover:bg-primary/20 hover:border-primary/50 transition-colors"

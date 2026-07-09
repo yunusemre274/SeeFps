@@ -20,7 +20,7 @@ import requests
 @dataclass
 class ApiConfig:
     """API bağlantı konfigürasyonu."""
-    base_url: str = "http://localhost:8000"
+    base_url: str = "https://seefps.onrender.com"
     timeout_sec: int = 10
     max_retries: int = 3
     retry_delay_sec: float = 2.0

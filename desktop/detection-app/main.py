@@ -202,7 +202,7 @@ def print_api_result(result: ApiResult):
 
 # ─── Ana Akış ───
 
-def run(api_url: str = "http://localhost:8000", dry_run: bool = False) -> int:
+def run(api_url: str = "https://seefps.onrender.com", dry_run: bool = False) -> int:
     """
     Detection App ana akışı.
 
@@ -302,8 +302,8 @@ def main():
     )
     parser.add_argument(
         "--api-url",
-        default=os.getenv("SEEFPS_API_URL", "http://localhost:8000"),
-        help="Backend API URL'si (varsayılan: http://localhost:8000)",
+        default=os.getenv("SEEFPS_API_URL", "https://seefps.onrender.com"),
+        help="Backend API URL'si (varsayılan: https://seefps.onrender.com)",
     )
     parser.add_argument(
         "--dry-run",

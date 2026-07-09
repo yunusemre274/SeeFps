@@ -11,6 +11,7 @@ import {
   useResolutions,
   useGames,
 } from "@/hooks/useHardwareData";
+import { API_BASE_URL } from "@/services/apiService";
 import type {
   SystemSpec,
   BenchmarkResults,
@@ -315,7 +316,7 @@ function Detection({ onDone, onBack, onManual }: { onDone: (s: SystemSpec) => vo
 
     try {
       // Backend sağlık kontrolü
-      const healthRes = await fetch("http://localhost:8000/api/health");
+      const healthRes = await fetch(`${API_BASE_URL}/health`);
       if (!healthRes.ok) throw new Error("Backend'e ulaşılamadı");
 
       // Detection App'in en son tarama sonucunu kontrol et
@@ -358,7 +359,7 @@ function Detection({ onDone, onBack, onManual }: { onDone: (s: SystemSpec) => vo
 
             <div className="mt-8 flex flex-col items-center gap-4">
               <a
-                href="https://github.com/user/SeeFps/tree/main/desktop/detection-app"
+                href="https://github.com/yunusemre274/SeeFps/releases/latest"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 px-6 py-3 font-mono text-sm uppercase tracking-widest bg-primary/10 border-2 border-primary text-primary hover:bg-primary/20 hover:shadow-[0_0_15px_oklch(0.82_0.24_142_/_0.4)] transition-all"
@@ -428,10 +429,11 @@ function Manual({ initial, onDone, onBack }: { initial: SystemSpec | null; onDon
     return cpuNames.length > 0 && gpuNames.length > 0;
   }, [cpuNames, gpuNames, ramNames, ssdNames, resNames, cpu, gpu, ram, ssd, resolution]);
 
+  const isFetching = cpuQuery.isFetching || gpuQuery.isFetching || ramQuery.isFetching || ssdQuery.isFetching || resQuery.isFetching;
   const isLoading = cpuQuery.isLoading || gpuQuery.isLoading || ramQuery.isLoading || ssdQuery.isLoading || resQuery.isLoading;
   const isError = cpuQuery.isError || gpuQuery.isError || ramQuery.isError || ssdQuery.isError || resQuery.isError;
   const errorMessage = [cpuQuery.error, gpuQuery.error, ramQuery.error, ssdQuery.error, resQuery.error]
-    .find(e => e)?.message ?? "API bağlantısı kurulamadı";
+    .find(e => e)?.message ?? "Backend API bağlantısı kurulamadı. Sunucu uyanıyor olabilir — lütfen birkaç saniye bekleyip tekrar deneyin.";
 
   const allValid = cpu && gpu && ram && ssd && resolution;
 
@@ -441,7 +443,7 @@ function Manual({ initial, onDone, onBack }: { initial: SystemSpec | null; onDon
       <div className="mx-auto max-w-4xl px-6 py-16">
         <StepLabel n={2} title="Manual Specs" />
 
-        {isLoading && <LoadingState label="Donanım verileri yükleniyor..." />}
+        {isLoading && <LoadingState label={isFetching ? "Sunucu uyanıyor, lütfen bekleyin... (ilk yüklemede 30-60 saniye sürebilir)" : "Donanım verileri yükleniyor..."} />}
 
         {isError && (
           <ApiErrorState
