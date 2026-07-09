@@ -41,6 +41,7 @@ dist/
 .output/
 .vinxi/
 .tanstack/
+.vercel/
 
 # ─── IDE & Editor ───
 .vscode/
