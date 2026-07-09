@@ -76,6 +76,7 @@ _default_origins = ",".join([
     "http://localhost:5173",
     "http://localhost:3000",
     "http://localhost:3001",
+    "https://see-fps.vercel.app/"
 ])
 cors_origins = [
     origin.strip()
