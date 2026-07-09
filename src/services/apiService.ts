@@ -31,7 +31,7 @@ import type {
  * Backend API base URL.
  * .env dosyasından okunur (VITE_API_BASE_URL), yoksa localhost:8000 varsayılır.
  */
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
 
 // ─── Generic Fetch Helpers ───
 
